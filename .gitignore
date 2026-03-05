@@ -1,0 +1,14 @@
+# node
+node_modules/
+.next/
+
+# env
+.env
+
+# build
+dist/
+build/
+
+# go
+bin/
+*.exe

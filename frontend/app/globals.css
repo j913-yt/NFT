@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  @apply bg-slate-950 text-slate-50;
+}
+
+/* 全局渐变背景 + 网格噪点效果 */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background: radial-gradient(circle at top left, #4f46e5 0, transparent 50%),
+    radial-gradient(circle at bottom right, #ec4899 0, transparent 55%),
+    radial-gradient(circle at top right, #22c55e 0, transparent 55%),
+    #020617;
+  opacity: 0.9;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image: linear-gradient(
+      90deg,
+      rgba(148, 163, 184, 0.08) 1px,
+      transparent 0
+    ),
+    linear-gradient(
+      180deg,
+      rgba(148, 163, 184, 0.08) 1px,
+      transparent 0
+    );
+  background-size: 40px 40px;
+  mix-blend-mode: soft-light;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.glass-panel {
+  @apply rounded-2xl border border-white/10 bg-slate-900/60 shadow-xl shadow-slate-900/40 backdrop-blur-xl;
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 via-sky-500 to-cyan-400 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-sky-500/30 transition hover:shadow-sky-500/50 hover:brightness-110;
+}
+
+.btn-outline {
+  @apply inline-flex items-center justify-center rounded-full border border-slate-500/60 bg-slate-900/40 px-5 py-2.5 text-sm font-medium text-slate-50/90 backdrop-blur hover:border-sky-400 hover:text-white hover:bg-slate-900/70 transition;
+}
+
+.badge {
+  @apply inline-flex items-center rounded-full bg-slate-800/80 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-slate-300;
+}
+
+.card-hover {
+  @apply transition duration-300 hover:-translate-y-1 hover:border-sky-400/70 hover:shadow-xl hover:shadow-sky-500/20;
+}
+
