@@ -1,7 +1,6 @@
-import axios from "axios";
+﻿import axios from "axios";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
 
 const api = axios.create({
   baseURL: `${API_BASE}/api/v1`,
@@ -10,7 +9,15 @@ const api = axios.create({
   }
 });
 
-// 简单把 token 存在 localStorage，用于后续扩展需要鉴权的接口
+function unwrapError(error, fallback) {
+  return (
+    error?.response?.data?.message ||
+    error?.message ||
+    fallback ||
+    "Request failed"
+  );
+}
+
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     const token = window.localStorage.getItem("jwt_token");
@@ -22,94 +29,218 @@ api.interceptors.request.use((config) => {
 });
 
 export async function register(email, password, username, avatar) {
-  const res = await api.post("/auth/register", {
-    email,
-    password,
-    username,
-    avatar
-  });
-  return res.data;
+  try {
+    const res = await api.post("/auth/register", {
+      email,
+      password,
+      username,
+      avatar
+    });
+    return res.data;
+  } catch (error) {
+    throw new Error(unwrapError(error, "注册失败"));
+  }
 }
 
 export async function login(email, password) {
-  const res = await api.post("/auth/login", { email, password });
-  if (typeof window !== "undefined") {
-    window.localStorage.setItem("jwt_token", res.data.token);
-    window.localStorage.setItem(
-      "current_user",
-      JSON.stringify(res.data.user || {})
-    );
+  try {
+    const res = await api.post("/auth/login", { email, password });
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("jwt_token", res.data.token);
+      window.localStorage.setItem(
+        "current_user",
+        JSON.stringify(res.data.user || {})
+      );
+    }
+    return res.data;
+  } catch (error) {
+    throw new Error(unwrapError(error, "登录失败"));
   }
-  return res.data;
 }
 
-export async function getNFTs(category) {
-  const params = category ? { category } : undefined;
-  const res = await api.get("/nfts", { params });
-  return res.data.list || [];
+export async function getNFTs(categoryOrOptions) {
+  try {
+    let params = {};
+
+    if (typeof categoryOrOptions === "string") {
+      if (categoryOrOptions) {
+        params.category = categoryOrOptions;
+      }
+    } else if (categoryOrOptions && typeof categoryOrOptions === "object") {
+      const { category, listed } = categoryOrOptions;
+      if (category) {
+        params.category = category;
+      }
+      if (typeof listed === "boolean") {
+        params.listed = listed;
+      }
+    }
+
+    if (!Object.keys(params).length) {
+      params = undefined;
+    }
+
+    const res = await api.get("/nfts", { params });
+    return res.data.list || [];
+  } catch (error) {
+    throw new Error(unwrapError(error, "加载 NFT 列表失败"));
+  }
 }
 
 export async function getNFTById(id) {
-  const res = await api.get(`/nfts/${id}`);
-  return res.data;
+  try {
+    const res = await api.get(`/nfts/${id}`);
+    return res.data;
+  } catch (error) {
+    throw new Error(unwrapError(error, "加载 NFT 详情失败"));
+  }
 }
 
 export async function createNFT(payload) {
-  const res = await api.post("/nfts", payload);
-  return res.data;
+  try {
+    const res = await api.post("/nfts", payload);
+    return res.data;
+  } catch (error) {
+    throw new Error(unwrapError(error, "创建 NFT 失败"));
+  }
+}
+
+export async function updateNFTListing(id, payload) {
+  try {
+    const res = await api.patch(`/nfts/${id}/listing`, payload);
+    return res.data;
+  } catch (error) {
+    throw new Error(unwrapError(error, "更新上架信息失败"));
+  }
 }
 
 export async function uploadAvatar(file) {
-  const formData = new FormData();
-  formData.append("file", file);
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
 
-  const res = await api.post("/upload/avatar", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data"
+    const res = await api.post("/upload/avatar", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data"
+      }
+    });
+    const { url } = res.data;
+    const fullUrl = url.startsWith("http") ? url : `${API_BASE}${url}`;
+    return { url: fullUrl };
+  } catch (error) {
+    throw new Error(unwrapError(error, "头像上传失败"));
+  }
+}
+
+export async function uploadNFTToIPFS({
+  file,
+  cover,
+  name,
+  description,
+  category
+}) {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (cover) {
+      formData.append("cover", cover);
     }
-  });
-  const { url } = res.data;
-  const fullUrl = url.startsWith("http") ? url : `${API_BASE}${url}`;
-  return { url: fullUrl };
+    formData.append("name", name || "Untitled NFT");
+    formData.append("description", description || "");
+    formData.append("category", category || "other");
+
+    const res = await api.post("/ipfs/nft", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data"
+      }
+    });
+    return res.data;
+  } catch (error) {
+    throw new Error(unwrapError(error, "上传到 IPFS 失败"));
+  }
 }
 
 export async function createOrder(payload) {
-  const res = await api.post("/orders", payload);
-  return res.data;
+  try {
+    const res = await api.post("/orders", payload);
+    return res.data;
+  } catch (error) {
+    throw new Error(unwrapError(error, "下单失败"));
+  }
+}
+
+export async function getMySoldOrders() {
+  try {
+    const res = await api.get("/orders/sold");
+    return res.data.list || [];
+  } catch (error) {
+    throw new Error(unwrapError(error, "加载已售出订单失败"));
+  }
+}
+
+export async function getMyBoughtOrders() {
+  try {
+    const res = await api.get("/orders/bought");
+    return res.data.list || [];
+  } catch (error) {
+    throw new Error(unwrapError(error, "加载已购入订单失败"));
+  }
+}
+
+export async function getNFTOrderHistory(nftId) {
+  try {
+    const res = await api.get(`/orders/nft/${nftId}`);
+    return res.data.list || [];
+  } catch (error) {
+    throw new Error(unwrapError(error, "加载 NFT 交易记录失败"));
+  }
 }
 
 export async function getWalletNonce(wallet) {
-  const res = await api.get("/auth/wallet/nonce", { params: { wallet } });
-  return res.data;
+  try {
+    const res = await api.get("/auth/wallet/nonce", { params: { wallet } });
+    return res.data;
+  } catch (error) {
+    throw new Error(unwrapError(error, "获取 nonce 失败"));
+  }
 }
 
 export async function walletLogin(wallet, signature) {
-  const res = await api.post("/auth/wallet/login", { wallet, signature });
-  if (typeof window !== "undefined") {
-    window.localStorage.setItem("jwt_token", res.data.token);
-    window.localStorage.setItem(
-      "current_user",
-      JSON.stringify(res.data.user || {})
-    );
+  try {
+    const res = await api.post("/auth/wallet/login", { wallet, signature });
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("jwt_token", res.data.token);
+      window.localStorage.setItem(
+        "current_user",
+        JSON.stringify(res.data.user || {})
+      );
+    }
+    return res.data;
+  } catch (error) {
+    throw new Error(unwrapError(error, "钱包登录失败"));
   }
-  return res.data;
 }
 
 export async function updateProfile(payload) {
-  const res = await api.put("/auth/profile", payload);
-  if (typeof window !== "undefined") {
-    const user = res.data.user || res.data;
-    const raw = window.localStorage.getItem("current_user");
-    let merged = user;
-    if (raw) {
-      try {
-        const old = JSON.parse(raw);
-        merged = { ...old, ...user };
-      } catch {
-        // ignore
+  try {
+    const res = await api.put("/auth/profile", payload);
+    if (typeof window !== "undefined") {
+      const user = res.data.user || res.data;
+      const raw = window.localStorage.getItem("current_user");
+      let merged = user;
+      if (raw) {
+        try {
+          const old = JSON.parse(raw);
+          merged = { ...old, ...user };
+        } catch {
+          // ignore invalid cache
+        }
       }
+      window.localStorage.setItem("current_user", JSON.stringify(merged));
     }
-    window.localStorage.setItem("current_user", JSON.stringify(merged));
+    return res.data;
+  } catch (error) {
+    throw new Error(unwrapError(error, "更新资料失败"));
   }
-  return res.data;
 }
+

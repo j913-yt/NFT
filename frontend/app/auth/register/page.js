@@ -1,5 +1,6 @@
-"use client";
+﻿"use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { register, uploadAvatar } from "@/lib/api";
@@ -13,17 +14,21 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("info");
 
   const handleAvatarChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     setUploading(true);
     setMessage("");
     try {
       const res = await uploadAvatar(file);
       setAvatar(res.url);
+      setMessageType("success");
       setMessage("头像上传成功");
     } catch (err) {
+      setMessageType("error");
       setMessage(err.message || "头像上传失败");
     } finally {
       setUploading(false);
@@ -36,11 +41,11 @@ export default function RegisterPage() {
     setMessage("");
     try {
       await register(email, password, username, avatar);
+      setMessageType("success");
       setMessage("注册成功，正在跳转到登录页...");
-      setTimeout(() => {
-        router.push("/auth/login");
-      }, 800);
+      setTimeout(() => router.push("/auth/login"), 700);
     } catch (err) {
+      setMessageType("error");
       setMessage(err.message || "注册失败");
     } finally {
       setLoading(false);
@@ -48,94 +53,55 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-col gap-4">
-      <div className="glass-panel px-6 py-7">
-        <h1 className="mb-1 text-2xl font-semibold text-slate-50">
-          创建你的 NovaNFT 账号
-        </h1>
-        <p className="mb-5 text-xs text-slate-300">
-          注册后你可以绑定钱包、创建 NFT 并在市场中展示，所有数据会在个人中心统一管理。
-        </p>
-        <form onSubmit={handleSubmit} className="space-y-4 text-sm">
-          <div>
-            <label className="mb-1 block text-xs text-slate-300">邮箱</label>
-            <input
-              type="email"
-              className="w-full rounded-xl border border-slate-600/70 bg-slate-900/60 px-3 py-2 text-xs text-slate-50 outline-none placeholder:text-slate-500 focus:border-sky-400"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="you@example.com"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-slate-300">用户名</label>
-            <input
-              className="w-full rounded-xl border border-slate-600/70 bg-slate-900/60 px-3 py-2 text-xs text-slate-50 outline-none placeholder:text-slate-500 focus:border-sky-400"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              placeholder="用于在市场中展示的昵称"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-slate-300">
-              头像上传（可选）
-            </label>
-            <input
-              type="file"
-              accept="image/*"
-              className="w-full text-xs text-slate-300 file:mr-3 file:rounded-full file:border-0 file:bg-sky-500/20 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-sky-200 hover:file:bg-sky-500/30"
-              onChange={handleAvatarChange}
-            />
-            {uploading && (
-              <p className="mt-1 text-[11px] text-slate-400">头像上传中...</p>
-            )}
-            {avatar && !uploading && (
-              <div className="mt-2 flex items-center gap-2">
-                <img
-                  src={avatar}
-                  alt="avatar"
-                  className="h-10 w-10 rounded-full border border-slate-600 object-cover"
-                />
-                <span className="text-[11px] text-slate-400 break-all">
-                  已上传：{avatar}
-                </span>
-              </div>
-            )}
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-slate-300">密码</label>
-            <input
-              type="password"
-              className="w-full rounded-xl border border-slate-600/70 bg-slate-900/60 px-3 py-2 text-xs text-slate-50 outline-none placeholder:text-slate-500 focus:border-sky-400"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="至少 6 位字符"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary w-full justify-center"
-          >
-            {loading ? "注册中..." : "注册并继续"}
-          </button>
-        </form>
-        {message && (
-          <p className="mt-3 text-xs text-slate-200">
-            {message}
+    <div className="mx-auto w-full max-w-md">
+      <div className="glass-panel hero-glow relative overflow-hidden p-6">
+        <div className="relative z-10">
+          <span className="badge">创建账号</span>
+          <h1 className="mt-3 text-3xl font-black text-white">加入 NovaNFT</h1>
+          <p className="mt-2 text-xs leading-6 text-soft">
+            创建账户后可绑定钱包、发布 NFT 并在市场展示。
           </p>
-        )}
+
+          <form onSubmit={handleSubmit} className="mt-5 space-y-3 text-sm">
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#d6e0ff]">邮箱</label>
+              <input type="email" className="input-neo" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#d6e0ff]">用户名</label>
+              <input className="input-neo" value={username} onChange={(e) => setUsername(e.target.value)} required />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#d6e0ff]">头像（可选）</label>
+              <input type="file" accept="image/*" className="input-neo file:mr-2 file:rounded-lg file:border-0 file:bg-[#3f7bff66] file:px-2 file:py-1 file:text-xs file:text-white" onChange={handleAvatarChange} />
+              {uploading && <p className="mt-1 text-[11px] text-soft">上传中...</p>}
+              {avatar && !uploading && (
+                <div className="mt-2 flex items-center gap-2">
+                  <img src={avatar} alt="avatar" className="h-10 w-10 rounded-full border border-white/20 object-cover" loading="lazy" decoding="async" />
+                  <span className="text-[11px] text-soft">已上传</span>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#d6e0ff]">密码</label>
+              <input type="password" className="input-neo" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            </div>
+
+            <button type="submit" disabled={loading} className="btn-primary w-full justify-center disabled:opacity-55">
+              {loading ? "注册中..." : "注册"}
+            </button>
+          </form>
+
+          {message && <p className={`status-message ${messageType}`}>{message}</p>}
+
+          <p className="mt-4 text-center text-[11px] text-soft">
+            已有账号？ <Link href="/auth/login" className="text-[#8fb3ff] hover:underline">直接登录</Link>
+          </p>
+        </div>
       </div>
-      <p className="text-center text-[11px] text-slate-400">
-        已有账号？{" "}
-        <a href="/auth/login" className="text-sky-300 hover:underline">
-          直接登录
-        </a>
-      </p>
     </div>
   );
 }
-

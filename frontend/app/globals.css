@@ -2,68 +2,303 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg: #06070b;
+  --bg-soft: #0d1018;
+  --panel: rgba(19, 23, 36, 0.86);
+  --panel-2: rgba(12, 15, 25, 0.9);
+  --line: rgba(255, 255, 255, 0.11);
+  --text-main: #f6f8ff;
+  --text-soft: #a7b0cb;
+  --text-dim: #7f89a7;
+  --blue: #3f7bff;
+  --pink: #ff1f9b;
+  --cyan: #18d2ff;
+  --lime: #72f08c;
+}
+
 html,
 body {
-  height: 100%;
+  min-height: 100%;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
-  @apply bg-slate-950 text-slate-50;
+  margin: 0;
+  color: var(--text-main);
+  background:
+    radial-gradient(900px 550px at 10% -10%, rgba(57, 109, 255, 0.22), transparent 60%),
+    radial-gradient(800px 500px at 100% 0%, rgba(255, 31, 155, 0.16), transparent 58%),
+    radial-gradient(720px 500px at 50% 120%, rgba(24, 210, 255, 0.12), transparent 60%),
+    var(--bg);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* 全局渐变背景 + 网格噪点效果 */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: radial-gradient(circle at 50% 25%, black 22%, transparent 78%);
   z-index: -2;
-  background: radial-gradient(circle at top left, #4f46e5 0, transparent 50%),
-    radial-gradient(circle at bottom right, #ec4899 0, transparent 55%),
-    radial-gradient(circle at top right, #22c55e 0, transparent 55%),
-    #020617;
-  opacity: 0.9;
 }
 
 body::after {
   content: "";
   position: fixed;
   inset: 0;
-  z-index: -1;
-  background-image: linear-gradient(
-      90deg,
-      rgba(148, 163, 184, 0.08) 1px,
-      transparent 0
-    ),
-    linear-gradient(
-      180deg,
-      rgba(148, 163, 184, 0.08) 1px,
-      transparent 0
-    );
-  background-size: 40px 40px;
-  mix-blend-mode: soft-light;
-  opacity: 0.7;
   pointer-events: none;
+  background: linear-gradient(180deg, rgba(6, 7, 11, 0) 0%, rgba(6, 7, 11, 0.78) 84%, rgba(6, 7, 11, 1) 100%);
+  z-index: -1;
+}
+
+@keyframes floatCard {
+  from {
+    transform: translateY(0px);
+  }
+  to {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes pulseEdge {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(63, 123, 255, 0);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(63, 123, 255, 0.32);
+  }
 }
 
 .glass-panel {
-  @apply rounded-2xl border border-white/10 bg-slate-900/60 shadow-xl shadow-slate-900/40 backdrop-blur-xl;
+  border-radius: 1.1rem;
+  border: 1px solid var(--line);
+  background: linear-gradient(160deg, rgba(20, 25, 40, 0.9) 0%, rgba(12, 14, 24, 0.92) 100%);
+  box-shadow:
+    0 18px 38px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
 }
 
 .btn-primary {
-  @apply inline-flex items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 via-sky-500 to-cyan-400 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-sky-500/30 transition hover:shadow-sky-500/50 hover:brightness-110;
+  @apply inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-white transition;
+  background: linear-gradient(95deg, #3f7bff 0%, #18d2ff 52%, #ff1f9b 100%);
+  box-shadow: 0 10px 26px rgba(63, 123, 255, 0.35);
+}
+
+.btn-primary:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
 }
 
 .btn-outline {
-  @apply inline-flex items-center justify-center rounded-full border border-slate-500/60 bg-slate-900/40 px-5 py-2.5 text-sm font-medium text-slate-50/90 backdrop-blur hover:border-sky-400 hover:text-white hover:bg-slate-900/70 transition;
+  @apply inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold transition;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.btn-outline:hover {
+  border-color: rgba(63, 123, 255, 0.66);
+  background: rgba(24, 210, 255, 0.08);
 }
 
 .badge {
-  @apply inline-flex items-center rounded-full bg-slate-800/80 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-slate-300;
+  @apply inline-flex items-center rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide;
+  color: #c9d4ff;
+  background: rgba(63, 123, 255, 0.16);
+  border: 1px solid rgba(63, 123, 255, 0.42);
 }
 
 .card-hover {
-  @apply transition duration-300 hover:-translate-y-1 hover:border-sky-400/70 hover:shadow-xl hover:shadow-sky-500/20;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  border-color: rgba(24, 210, 255, 0.5);
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(24, 210, 255, 0.18);
+}
+
+.input-neo {
+  width: 100%;
+  border-radius: 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-main);
+  padding: 0.55rem 0.8rem;
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.input-neo::placeholder {
+  color: var(--text-dim);
+}
+
+.input-neo:focus {
+  border-color: rgba(24, 210, 255, 0.75);
+  box-shadow: 0 0 0 3px rgba(24, 210, 255, 0.18);
+}
+
+.section-title {
+  @apply text-4xl font-black tracking-tight text-white;
+}
+
+.kpi-row {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+@media (min-width: 640px) {
+  .kpi-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.kpi-card {
+  border-radius: 0.95rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  padding: 0.9rem;
+}
+
+.kpi-card strong {
+  display: block;
+  font-size: 1.3rem;
+  color: #fff;
+  margin-top: 0.2rem;
+}
+
+.hero-glow {
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-glow::before {
+  content: "";
+  position: absolute;
+  width: 390px;
+  height: 390px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(63, 123, 255, 0.46), transparent 70%);
+  top: -160px;
+  right: -120px;
+  pointer-events: none;
+}
+
+.hero-glow::after {
+  content: "";
+  position: absolute;
+  width: 360px;
+  height: 360px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(255, 31, 155, 0.28), transparent 72%);
+  bottom: -160px;
+  left: -100px;
+  pointer-events: none;
+}
+
+.float-chip {
+  animation: floatCard 2.3s ease-in-out infinite alternate;
+}
+
+.pulse-edge {
+  animation: pulseEdge 3s ease-in-out infinite;
+}
+
+.neo-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.26) 30%, rgba(24, 210, 255, 0.68) 60%, transparent 100%);
+}
+
+.text-soft {
+  color: var(--text-soft);
+}
+
+.text-dim {
+  color: var(--text-dim);
+}
+
+:focus-visible {
+  outline: 2px solid rgba(24, 210, 255, 0.9);
+  outline-offset: 2px;
+}
+
+input,
+textarea,
+button {
+  color-scheme: dark;
+}
+
+select {
+  color-scheme: light;
+}
+
+select.input-neo {
+  color: var(--text-main);
+}
+
+select.input-neo option {
+  color: #0f1320 !important;
+  background-color: #f4f7ff !important;
+}
+
+select.input-neo option:checked {
+  color: #0b1020 !important;
+  background-color: #dbe7ff !important;
+}
+
+.status-message {
+  margin-top: 0.75rem;
+  border-radius: 0.7rem;
+  border: 1px solid transparent;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.75rem;
+}
+
+.status-message.success {
+  border-color: rgba(114, 240, 140, 0.45);
+  background: rgba(114, 240, 140, 0.12);
+  color: #d4ffe0;
+}
+
+.status-message.error {
+  border-color: rgba(255, 136, 156, 0.45);
+  background: rgba(255, 136, 156, 0.12);
+  color: #ffd8e0;
+}
+
+.status-message.info {
+  border-color: rgba(24, 210, 255, 0.45);
+  background: rgba(24, 210, 255, 0.12);
+  color: #d6f6ff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 

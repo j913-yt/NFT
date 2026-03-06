@@ -1,106 +1,77 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 export default function HomePage() {
   return (
-    <div className="flex w-full flex-col gap-8 lg:flex-row">
-      <section className="glass-panel relative flex-1 overflow-hidden px-6 py-8 lg:px-10">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(129,140,248,0.2),transparent_55%),radial-gradient(circle_at_bottom,_rgba(56,189,248,0.18),transparent_55%)]" />
-        <div className="relative z-10 space-y-6">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-emerald-200">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            实时链上 · 毕业设计 NFT 市场
-          </div>
-
-          <div>
-            <h1 className="mb-3 text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
-              探索你的数字藏品宇宙
+    <div className="flex w-full flex-col gap-6">
+      <section className="glass-panel hero-glow relative overflow-hidden px-6 py-8 sm:px-8">
+        <div className="relative z-10 grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
+          <div className="space-y-5">
+            <span className="badge">Nova NFT 信息流</span>
+            <h1 className="section-title max-w-2xl text-4xl sm:text-5xl">
+              一站式创建、铸造与交易
+              <br />
+              多媒体 NFT
             </h1>
-            <p className="max-w-xl text-sm leading-relaxed text-slate-200/80">
-              NovaNFT
-              将传统的账号体系、Web3
-              钱包与链上合约打通，完整演示一个现代化的 NFT 数字藏品交易流程，适合作为毕业设计展示你的区块链与全栈能力。
+            <p className="max-w-2xl text-sm leading-7 text-soft">
+              支持钱包签名登录、IPFS 元数据上链、图片/音频/视频统一展示。
+              整套交互按真实 NFT 市场形态设计，可直接用于毕业答辩展示完整链路。
             </p>
+            <div className="flex flex-wrap gap-3">
+              <Link href="/nfts" className="btn-primary px-5 py-2.5">
+                进入市场
+              </Link>
+              <Link href="/nfts/create" className="btn-outline px-5 py-2.5">
+                创建 NFT
+              </Link>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 text-sm">
-            <Link href="/nfts/create" className="btn-primary">
-              连接钱包并创建 NFT
-            </Link>
-            <Link href="/nfts" className="btn-outline">
-              浏览市场
-            </Link>
-            <span className="text-xs text-slate-300/80">
-              或前往 <span className="font-medium text-sky-300">个人中心</span>{" "}
-              查看你的资产
-            </span>
-          </div>
-
-          <div className="mt-4 grid gap-4 text-xs text-slate-200/80 sm:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-slate-900/60 px-3 py-3">
-              <p className="text-[11px] text-slate-400">链上资产</p>
-              <p className="mt-1 text-lg font-semibold text-emerald-300">
-                NFT Mint 流程
+          <div className="glass-panel pulse-edge relative overflow-hidden p-5">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(63,123,255,0.2),transparent_65%)]" />
+            <div className="relative z-10 space-y-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#9fb2ea]">
+                上线流程清单
               </p>
-              <p className="mt-1 text-[11px] text-slate-400">
-                前端连接钱包 · 合约 mint · 后端入库，一次演示讲清完整闭环。
-              </p>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-slate-900/60 px-3 py-3">
-              <p className="text-[11px] text-slate-400">技术栈</p>
-              <p className="mt-1 text-lg font-semibold text-sky-300">
-                Next.js + Go + Web3
-              </p>
-              <p className="mt-1 text-[11px] text-slate-400">
-                前后端分离 + REST API + 智能合约，覆盖主流企业级架构。
-              </p>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-slate-900/60 px-3 py-3">
-              <p className="text-[11px] text-slate-400">适配毕业答辩</p>
-              <p className="mt-1 text-lg font-semibold text-violet-300">
-                逻辑清晰 · UI 现代
-              </p>
-              <p className="mt-1 text-[11px] text-slate-400">
-                从用户注册、钱包连接到 NFT 创建和展示，一条龙演示项目亮点。
-              </p>
+              <ol className="space-y-2 text-sm text-soft">
+                <li>1. 连接钱包并签名登录</li>
+                <li>2. 选择分类并上传媒体文件</li>
+                <li>3. 上传到 IPFS 并写入链上 tokenURI</li>
+                <li>4. 在市场和详情页展示收藏品</li>
+              </ol>
+              <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-[#d2ddff]">
+                提示：音频/视频建议上传封面，卡片视觉会更完整。
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="glass-panel flex w-full flex-col justify-between px-6 py-6 lg:w-80 lg:px-6">
-        <div>
-          <h2 className="mb-3 text-sm font-semibold text-slate-100">
-            平台实时概览（示意）
-          </h2>
-          <div className="space-y-3 text-xs text-slate-300">
-            <div className="flex items-center justify-between rounded-xl bg-slate-900/70 px-3 py-2.5">
-              <div>
-                <p className="text-[11px] text-slate-400">已铸造 NFT 数量</p>
-                <p className="text-lg font-semibold text-sky-300">∞</p>
-              </div>
-              <span className="badge">ERC-721</span>
-            </div>
-            <div className="flex items-center justify-between rounded-xl bg-slate-900/70 px-3 py-2.5">
-              <div>
-                <p className="text-[11px] text-slate-400">支持的钱包</p>
-                <p className="text-sm font-medium text-emerald-300">
-                  MetaMask · OKX Wallet
-                </p>
-              </div>
-              <span className="badge">Web3 Login</span>
-            </div>
-            <div className="rounded-xl bg-slate-900/70 px-3 py-3">
-              <p className="text-[11px] text-slate-400">建议用于答辩的讲解顺序</p>
-              <ol className="mt-1 list-decimal space-y-1 pl-4">
-                <li>从首页概览介绍系统架构</li>
-                <li>演示钱包连接 / 登录与个人中心</li>
-                <li>创建 NFT 并在市场页查看</li>
-              </ol>
-            </div>
+      <section className="glass-panel px-5 py-5 sm:px-6">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-2xl font-black text-white">数据概览</h2>
+          <Link href="/nfts" className="btn-outline px-3 py-1.5 text-xs">
+            查看全部
+          </Link>
+        </div>
+        <div className="neo-divider mb-4" />
+        <div className="kpi-row text-xs text-soft">
+          <div className="kpi-card">
+            <p>NFT 藏品库</p>
+            <strong>实时同步</strong>
+            <p className="mt-1 text-dim">按分类聚合展示实时作品池</p>
+          </div>
+          <div className="kpi-card">
+            <p>铸造链路</p>
+            <strong>IPFS + ERC-721</strong>
+            <p className="mt-1 text-dim">媒体文件和 metadata 分离上链</p>
+          </div>
+          <div className="kpi-card">
+            <p>市场体验</p>
+            <strong>暗色霓虹风格</strong>
+            <p className="mt-1 text-dim">卡片、筛选、详情统一视觉系统</p>
           </div>
         </div>
       </section>
     </div>
   );
 }
-

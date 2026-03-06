@@ -3,9 +3,12 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"nft-backend/internal/middleware"
 	"nft-backend/internal/service"
+
+	"github.com/gorilla/mux"
 )
 
 type OrderHandler struct {
@@ -44,3 +47,51 @@ func (h *OrderHandler) Create(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, order)
 }
 
+func (h *OrderHandler) ListSold(w http.ResponseWriter, r *http.Request) {
+	uid, ok := middleware.UserIDFromContext(r.Context())
+	if !ok || uid == 0 {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"message": "未登录"})
+		return
+	}
+
+	list, err := h.svc.ListSoldOrders(uid)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"message": "加载已售订单失败"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{"list": list})
+}
+
+func (h *OrderHandler) ListBought(w http.ResponseWriter, r *http.Request) {
+	uid, ok := middleware.UserIDFromContext(r.Context())
+	if !ok || uid == 0 {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"message": "未登录"})
+		return
+	}
+
+	list, err := h.svc.ListBoughtOrders(uid)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"message": "加载已购订单失败"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{"list": list})
+}
+
+func (h *OrderHandler) ListByNFT(w http.ResponseWriter, r *http.Request) {
+	idStr := mux.Vars(r)["id"]
+	id64, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil || id64 == 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "参数错误"})
+		return
+	}
+
+	list, err := h.svc.ListByNFTID(uint(id64))
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"message": "加载交易记录失败"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{"list": list})
+}

@@ -8,7 +8,7 @@ type User struct {
 	Email     *string   `gorm:"uniqueIndex;size:255" json:"email"`
 	Username  string    `gorm:"size:255" json:"username"`
 	Avatar    string    `gorm:"size:512" json:"avatar"`
-	Password  string    `json:"-"` // 加密后的密码，不返回给前端
+	Password  string    `json:"-"`
 	Wallet    string    `gorm:"size:255;uniqueIndex" json:"wallet"`
 	Nonce     string    `gorm:"size:255" json:"-"`
 	CreatedAt time.Time `json:"createdAt"`
@@ -22,10 +22,16 @@ type NFT struct {
 	Name        string    `gorm:"size:255" json:"name"`
 	Description string    `gorm:"size:1000" json:"description"`
 	ImageURL    string    `gorm:"size:1000" json:"imageUrl"`
+	MediaURL    string    `gorm:"size:1000" json:"mediaUrl"`
+	MediaType   string    `gorm:"size:50" json:"mediaType"`
+	MimeType    string    `gorm:"size:100" json:"mimeType"`
 	TokenURI    string    `gorm:"size:1000" json:"tokenUri"`
+	MetadataURL string    `gorm:"size:1000" json:"metadataUrl"`
+	Storage     string    `gorm:"size:50" json:"storage"`
 	Category    string    `gorm:"size:100" json:"category"`
 	OwnerID     uint      `json:"ownerId"`
 	Price       float64   `json:"price"`
+	PriceUnit   string    `gorm:"size:20" json:"priceUnit"`
 	CreatedAt   time.Time `json:"createdAt"`
 }
 
@@ -37,7 +43,6 @@ type Order struct {
 	SellerID  uint      `json:"sellerId"`
 	Price     float64   `json:"price"`
 	TxHash    string    `gorm:"size:255" json:"txHash"`
-	Status    string    `gorm:"size:50" json:"status"` // pending / success / failed
+	Status    string    `gorm:"size:50" json:"status"`
 	CreatedAt time.Time `json:"createdAt"`
 }
-
