@@ -49,7 +49,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                placeholder="you@example.com"
+                placeholder="请输入邮箱地址"
               />
             </div>
             <div>

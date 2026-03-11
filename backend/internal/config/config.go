@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -22,8 +23,46 @@ type Config struct {
 	IPFSGateway     string
 }
 
+func collectDotEnvCandidates() []string {
+	seen := map[string]struct{}{}
+	var candidates []string
+
+	add := func(path string) {
+		if path == "" {
+			return
+		}
+		clean := filepath.Clean(path)
+		if _, ok := seen[clean]; ok {
+			return
+		}
+		seen[clean] = struct{}{}
+		candidates = append(candidates, clean)
+	}
+
+	wd, err := os.Getwd()
+	if err != nil || wd == "" {
+		add(".env")
+		add("backend/.env")
+		return candidates
+	}
+
+	dir := wd
+	for {
+		add(filepath.Join(dir, ".env"))
+		add(filepath.Join(dir, "backend", ".env"))
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+
+	return candidates
+}
+
 func loadDotEnvIfPresent() {
-	candidates := []string{".env", "backend/.env"}
+	candidates := collectDotEnvCandidates()
 
 	for _, file := range candidates {
 		f, err := os.Open(file)

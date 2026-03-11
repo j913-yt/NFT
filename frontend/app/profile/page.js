@@ -1,9 +1,10 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getMyBoughtOrders, getMySoldOrders, getNFTs, updateProfile } from "@/lib/api";
 import { getNFTMedia, resolveAssetUrl } from "@/lib/media";
+import MarketplaceCard from "@/components/MarketplaceCard";
 
 const formatPrice = (value, unit = "ETH") => {
   const safeUnit = unit || "ETH";
@@ -11,7 +12,8 @@ const formatPrice = (value, unit = "ETH") => {
   const num = Number(value);
   if (!isFinite(num) || num === 0) return `未上架 (${safeUnit})`;
   if (num < 0.00000001) return `< 0.00000001 ${safeUnit}`;
-  return `${parseFloat(num.toFixed(8)).toString()} ${safeUnit}`;
+  const normalized = num.toFixed(8).replace(/\.?0+$/, "");
+  return `${normalized} ${safeUnit}`;
 };
 
 const shortWallet = (wallet) => {
@@ -27,6 +29,52 @@ const formatOrderTime = (value) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(
     d.getHours()
   ).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+};
+
+const tabOptions = [
+  { id: "holding", label: "当前持有" },
+  { id: "buy", label: "历史买入" },
+  { id: "sell", label: "历史卖出" }
+];
+
+const sortOptionsByTab = {
+  holding: [
+    { id: "timeDesc", label: "时间从新到旧" },
+    { id: "timeAsc", label: "时间从旧到新" },
+    { id: "priceHigh", label: "价格从高到低" },
+    { id: "priceLow", label: "价格从低到高" },
+    { id: "nameAZ", label: "名称 A-Z" }
+  ],
+  buy: [
+    { id: "timeDesc", label: "成交时间从新到旧" },
+    { id: "timeAsc", label: "成交时间从旧到新" },
+    { id: "priceHigh", label: "成交价从高到低" },
+    { id: "priceLow", label: "成交价从低到高" }
+  ],
+  sell: [
+    { id: "timeDesc", label: "成交时间从新到旧" },
+    { id: "timeAsc", label: "成交时间从旧到新" },
+    { id: "priceHigh", label: "成交价从高到低" },
+    { id: "priceLow", label: "成交价从低到高" }
+  ]
+};
+
+const toTimestamp = (value) => {
+  if (!value) return 0;
+  const t = new Date(value).getTime();
+  return Number.isFinite(t) ? t : 0;
+};
+
+const getNFTTimeScore = (nft) => {
+  const t = toTimestamp(nft?.updatedAt || nft?.createdAt);
+  if (t > 0) return t;
+  return Number(nft?.id || 0);
+};
+
+const getOrderTimeScore = (order) => {
+  const t = toTimestamp(order?.createdAt || order?.updatedAt);
+  if (t > 0) return t;
+  return Number(order?.id || 0);
 };
 
 function ProfileMedia({ nft }) {
@@ -54,7 +102,7 @@ function ProfileMedia({ nft }) {
   if (mediaType === "audio") {
     return (
       <div className="relative mb-2 overflow-hidden rounded-lg bg-[#0b1020] p-2">
-        {coverUrl && <img src={coverUrl} alt="cover" className="absolute inset-0 h-full w-full object-cover" loading="lazy" decoding="async" />}
+        {coverUrl && <img src={coverUrl} alt="封面" className="absolute inset-0 h-full w-full object-cover" loading="lazy" decoding="async" />}
         <div className="absolute inset-0 bg-black/30" />
         <div className="relative z-10 rounded-md bg-black/45 p-1.5 backdrop-blur-sm">
           <audio controls src={mediaUrl} className="w-full" preload="metadata" />
@@ -89,6 +137,8 @@ export default function ProfilePage() {
   const [listError, setListError] = useState("");
   const [soldError, setSoldError] = useState("");
   const [boughtError, setBoughtError] = useState("");
+  const [activeTab, setActiveTab] = useState("holding");
+  const [sortBy, setSortBy] = useState("timeDesc");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -140,6 +190,73 @@ export default function ProfilePage() {
 
     fetchData();
   }, [user]);
+
+  const currentSortOptions = sortOptionsByTab[activeTab] || [];
+
+  useEffect(() => {
+    if (!currentSortOptions.some((opt) => opt.id === sortBy)) {
+      setSortBy(currentSortOptions[0]?.id || "timeDesc");
+    }
+  }, [activeTab, currentSortOptions, sortBy]);
+
+  const sortedNfts = useMemo(() => {
+    const list = [...nfts];
+
+    if (sortBy === "timeAsc") {
+      list.sort((a, b) => getNFTTimeScore(a) - getNFTTimeScore(b));
+    } else if (sortBy === "priceHigh") {
+      list.sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
+    } else if (sortBy === "priceLow") {
+      list.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
+    } else if (sortBy === "nameAZ") {
+      list.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "zh-CN"));
+    } else {
+      list.sort((a, b) => getNFTTimeScore(b) - getNFTTimeScore(a));
+    }
+
+    return list;
+  }, [nfts, sortBy]);
+
+  const sortedBoughtOrders = useMemo(() => {
+    const list = [...boughtOrders];
+
+    if (sortBy === "timeAsc") {
+      list.sort((a, b) => getOrderTimeScore(a) - getOrderTimeScore(b));
+    } else if (sortBy === "priceHigh") {
+      list.sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
+    } else if (sortBy === "priceLow") {
+      list.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
+    } else {
+      list.sort((a, b) => getOrderTimeScore(b) - getOrderTimeScore(a));
+    }
+
+    return list;
+  }, [boughtOrders, sortBy]);
+
+  const sortedSoldOrders = useMemo(() => {
+    const list = [...soldOrders];
+
+    if (sortBy === "timeAsc") {
+      list.sort((a, b) => getOrderTimeScore(a) - getOrderTimeScore(b));
+    } else if (sortBy === "priceHigh") {
+      list.sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
+    } else if (sortBy === "priceLow") {
+      list.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
+    } else {
+      list.sort((a, b) => getOrderTimeScore(b) - getOrderTimeScore(a));
+    }
+
+    return list;
+  }, [soldOrders, sortBy]);
+
+  const activeCount =
+    activeTab === "holding" ? sortedNfts.length : activeTab === "buy" ? sortedBoughtOrders.length : sortedSoldOrders.length;
+
+  const activeLoading =
+    activeTab === "holding" ? loadingNfts : activeTab === "buy" ? loadingBought : loadingSold;
+
+  const activeError =
+    activeTab === "holding" ? listError : activeTab === "buy" ? boughtError : soldError;
 
   if (!user) {
     return (
@@ -216,94 +333,136 @@ export default function ProfilePage() {
         </div>
       </section>
 
-      <section className="glass-panel space-y-6 p-5">
-        <div>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-2xl font-black text-white">我的 NFT</h2>
-            <span className="badge">{nfts.length} 件</span>
-          </div>
+      <section className="glass-panel space-y-4 p-5">
+        <div className="flex flex-wrap gap-2">
+          {tabOptions.map((tab) => {
+            const count = tab.id === "holding" ? nfts.length : tab.id === "buy" ? boughtOrders.length : soldOrders.length;
+            const active = activeTab === tab.id;
 
-          {loadingNfts && <p className="status-message info">正在同步你的 NFT 列表...</p>}
-          {listError && <p className="status-message error">{listError}</p>}
-
-          {!loadingNfts && !listError && nfts.length === 0 ? (
-            <p className="text-xs text-soft">你还没有持有 NFT。</p>
-          ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {nfts.map((nft) => (
-                <Link key={nft.id} href={`/nfts/${nft.id}`} className="block">
-                  <div className="card-hover overflow-hidden rounded-xl border border-white/15 bg-[#0b1020] p-3 text-xs">
-                    <ProfileMedia nft={nft} />
-                    <p className="truncate text-sm font-bold text-white">{nft.name || "未命名"}</p>
-                    <p className="line-clamp-2 mt-1 text-[11px] text-soft">{nft.description || "暂无描述"}</p>
-                    <p className="mt-1 text-[11px] text-[#9db1ea]">分类: {(nft.category || "other").toUpperCase()}</p>
-                    <p className="mt-1 text-[11px] text-[#9db1ea]">{formatPrice(nft.price, nft.priceUnit)}</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                  active
+                    ? "border-[#3f7bff] bg-[#3f7bff33] text-white"
+                    : "border-white/20 bg-white/5 text-[#c6d1f7] hover:bg-white/10"
+                }`}
+              >
+                {tab.label} ({count})
+              </button>
+            );
+          })}
         </div>
 
-        <div>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-2xl font-black text-white">已购入</h2>
-            <span className="badge">{boughtOrders.length} 笔</span>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-black text-white">
+              {activeTab === "holding" ? "当前持有" : activeTab === "buy" ? "历史买入" : "历史卖出"}
+            </h2>
+            <p className="mt-1 text-xs text-soft">共 {activeCount} 条记录</p>
           </div>
 
-          {loadingBought && <p className="status-message info">正在加载已购入订单...</p>}
-          {boughtError && <p className="status-message error">{boughtError}</p>}
-
-          {!loadingBought && !boughtError && boughtOrders.length === 0 ? (
-            <p className="text-xs text-soft">你还没有买入记录。</p>
-          ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {boughtOrders.map((order) => (
-                <Link key={order.id} href={`/nfts/${order.nftId}`} className="block" title="查看 NFT 详情">
-                  <div className="card-hover rounded-xl border border-white/15 bg-[#0b1020] p-3 text-xs">
-                    <OrderMedia order={order} />
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="truncate text-sm font-bold text-white">{order.nftName || `NFT #${order.nftId}`}</p>
-                      <p className="text-[11px] text-[#9db1ea]">{formatPrice(order.price, "ETH")}</p>
-                    </div>
-                    <p className="mt-1 text-[11px] text-soft">卖家: {order.sellerName || shortWallet(order.sellerWallet)}</p>
-                    <p className="mt-1 text-[11px] text-soft">成交时间: {formatOrderTime(order.createdAt)}</p>
-                  </div>
-                </Link>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-soft">排序</span>
+            <select className="input-neo w-44" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+              {currentSortOptions.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </option>
               ))}
-            </div>
-          )}
-        </div>
-
-        <div>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-2xl font-black text-white">已售出</h2>
-            <span className="badge">{soldOrders.length} 笔</span>
+            </select>
           </div>
-
-          {loadingSold && <p className="status-message info">正在加载已售出订单...</p>}
-          {soldError && <p className="status-message error">{soldError}</p>}
-
-          {!loadingSold && !soldError && soldOrders.length === 0 ? (
-            <p className="text-xs text-soft">你还没有售出记录。</p>
-          ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {soldOrders.map((order) => (
-                <Link key={order.id} href={`/nfts/${order.nftId}`} className="block" title="查看 NFT 详情">
-                  <div className="card-hover rounded-xl border border-white/15 bg-[#0b1020] p-3 text-xs">
-                    <OrderMedia order={order} />
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="truncate text-sm font-bold text-white">{order.nftName || `NFT #${order.nftId}`}</p>
-                      <p className="text-[11px] text-[#9db1ea]">{formatPrice(order.price, "ETH")}</p>
-                    </div>
-                    <p className="mt-1 text-[11px] text-soft">买家: {order.buyerName || shortWallet(order.buyerWallet)}</p>
-                    <p className="mt-1 text-[11px] text-soft">成交时间: {formatOrderTime(order.createdAt)}</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
         </div>
+
+        {activeLoading && (
+          <p className="status-message info">
+            {activeTab === "holding" ? "正在同步当前持有..." : activeTab === "buy" ? "正在加载买入记录..." : "正在加载卖出记录..."}
+          </p>
+        )}
+
+        {activeError && <p className="status-message error">{activeError}</p>}
+
+        {activeTab === "holding" && !activeLoading && !activeError && sortedNfts.length === 0 && (
+          <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-5 text-xs text-soft">
+            <p>你还没有持有 NFT。</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link href="/nfts/create" className="btn-primary px-3 py-1.5 text-xs">
+                去创建
+              </Link>
+              <Link href="/nfts" className="btn-outline px-3 py-1.5 text-xs">
+                去市场浏览
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "holding" && !activeLoading && !activeError && sortedNfts.length > 0 && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {sortedNfts.map((nft) => (
+              <MarketplaceCard key={nft.id} nft={nft} href={`/nfts/${nft.id}`} />
+            ))}
+          </div>
+        )}
+
+        {activeTab === "buy" && !activeLoading && !activeError && sortedBoughtOrders.length === 0 && (
+          <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-5 text-xs text-soft">
+            <p>你还没有买入记录。</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link href="/nfts" className="btn-outline px-3 py-1.5 text-xs">
+                去市场购买
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "buy" && !activeLoading && !activeError && sortedBoughtOrders.length > 0 && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {sortedBoughtOrders.map((order) => (
+              <Link key={order.id} href={`/nfts/${order.nftId}`} className="block" title="查看 NFT 详情">
+                <div className="card-hover rounded-xl border border-white/15 bg-[#0b1020] p-3 text-xs">
+                  <OrderMedia order={order} />
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="truncate text-sm font-bold text-white">{order.nftName || `NFT #${order.nftId}`}</p>
+                    <p className="text-[11px] text-[#9db1ea]">{formatPrice(order.price, "ETH")}</p>
+                  </div>
+                  <p className="mt-1 text-[11px] text-soft">卖家: {order.sellerName || shortWallet(order.sellerWallet)}</p>
+                  <p className="mt-1 text-[11px] text-soft">成交时间: {formatOrderTime(order.createdAt)}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {activeTab === "sell" && !activeLoading && !activeError && sortedSoldOrders.length === 0 && (
+          <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-5 text-xs text-soft">
+            <p>你还没有售出记录。</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link href="/nfts" className="btn-outline px-3 py-1.5 text-xs">
+                查看市场行情
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "sell" && !activeLoading && !activeError && sortedSoldOrders.length > 0 && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {sortedSoldOrders.map((order) => (
+              <Link key={order.id} href={`/nfts/${order.nftId}`} className="block" title="查看 NFT 详情">
+                <div className="card-hover rounded-xl border border-white/15 bg-[#0b1020] p-3 text-xs">
+                  <OrderMedia order={order} />
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="truncate text-sm font-bold text-white">{order.nftName || `NFT #${order.nftId}`}</p>
+                    <p className="text-[11px] text-[#9db1ea]">{formatPrice(order.price, "ETH")}</p>
+                  </div>
+                  <p className="mt-1 text-[11px] text-soft">买家: {order.buyerName || shortWallet(order.buyerWallet)}</p>
+                  <p className="mt-1 text-[11px] text-soft">成交时间: {formatOrderTime(order.createdAt)}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

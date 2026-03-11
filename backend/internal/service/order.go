@@ -192,7 +192,7 @@ func (s *OrderService) ListBoughtOrders(buyerID uint) ([]BoughtOrderItem, error)
 			s.wallet AS seller_wallet,
 			s.username AS seller_name
 		`).
-		Joins("LEFT JOIN nfts AS n ON n.id = o.nft_id").
+		Joins("JOIN nfts AS n ON n.id = o.nft_id AND n.owner_id = ?", buyerID).
 		Joins("LEFT JOIN users AS s ON s.id = o.seller_id").
 		Where("o.buyer_id = ?", buyerID).
 		Order("o.id DESC").

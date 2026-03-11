@@ -3,18 +3,19 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
 
 const api = axios.create({
-  baseURL: `${API_BASE}/api/v1`,
-  headers: {
-    "Content-Type": "application/json"
-  }
+  baseURL: `${API_BASE}/api/v1`
 });
 
 function unwrapError(error, fallback) {
+  const data = error?.response?.data;
+  if (typeof data === "string" && data.trim()) {
+    return data.trim();
+  }
   return (
-    error?.response?.data?.message ||
+    data?.message ||
     error?.message ||
     fallback ||
-    "Request failed"
+    "请求失败"
   );
 }
 
@@ -119,11 +120,7 @@ export async function uploadAvatar(file) {
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await api.post("/upload/avatar", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data"
-      }
-    });
+    const res = await api.post("/upload/avatar", formData);
     const { url } = res.data;
     const fullUrl = url.startsWith("http") ? url : `${API_BASE}${url}`;
     return { url: fullUrl };
@@ -137,7 +134,8 @@ export async function uploadNFTToIPFS({
   cover,
   name,
   description,
-  category
+  category,
+  onUploadProgress
 }) {
   try {
     const formData = new FormData();
@@ -145,14 +143,12 @@ export async function uploadNFTToIPFS({
     if (cover) {
       formData.append("cover", cover);
     }
-    formData.append("name", name || "Untitled NFT");
+    formData.append("name", name || "未命名 NFT");
     formData.append("description", description || "");
     formData.append("category", category || "other");
 
     const res = await api.post("/ipfs/nft", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data"
-      }
+      onUploadProgress
     });
     return res.data;
   } catch (error) {

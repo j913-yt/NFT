@@ -52,7 +52,7 @@ export function convertPriceToEth(value, unit = "ETH") {
 export function formatEth(value, fractionDigits = 8) {
   const n = safeNumber(value);
   if (n <= 0) return "0";
-  return parseFloat(n.toFixed(fractionDigits)).toString();
+  return n.toFixed(fractionDigits).replace(/\.?0+$/, "");
 }
 
 function toEthAmountString(value) {
@@ -159,22 +159,22 @@ export function detectInjectedWallets() {
 
   for (const p of providers) {
     if (p.isOkxWallet || p.isOKExWallet) {
-      pushIf(p, "okx", "OKX Wallet");
+      pushIf(p, "okx", "OKX 钱包");
     } else if (p.isBitKeep || p.isBitgetWallet) {
-      pushIf(p, "bitget", "Bitget Wallet");
+      pushIf(p, "bitget", "Bitget 钱包");
     } else if (p.isMetaMask) {
-      pushIf(p, "metamask", "MetaMask");
+      pushIf(p, "metamask", "MetaMask 钱包");
     }
   }
 
   const okx = window.okxwallet?.ethereum || window.okxwallet;
   if (okx && !results.find((w) => w.id === "okx")) {
-    pushIf(okx, "okx", "OKX Wallet");
+    pushIf(okx, "okx", "OKX 钱包");
   }
 
   const bitkeep = window.bitkeep?.ethereum || window.bitkeep;
   if (bitkeep && !results.find((w) => w.id === "bitget")) {
-    pushIf(bitkeep, "bitget", "Bitget Wallet");
+    pushIf(bitkeep, "bitget", "Bitget 钱包");
   }
 
   if (!results.length && eth) {
@@ -226,7 +226,7 @@ export async function getOnChainListing(tokenId, walletId) {
   };
 }
 
-export async function mintNFTWithWallet({ tokenURI, walletId, priceEth = 0 }) {
+export async function mintNFTWithWallet({ tokenURI, walletId, priceEth = 0, onStage }) {
   assertContractAddress();
   const { signer, account } = await getProviderAndSigner(walletId);
   const contract = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_CONTRACT_ABI, signer);
@@ -235,6 +235,7 @@ export async function mintNFTWithWallet({ tokenURI, walletId, priceEth = 0 }) {
   let tx;
   let listedPriceWei = 0n;
 
+  onStage?.("wallet");
   if (normalizedPriceEth > 0) {
     listedPriceWei = toEthWei(normalizedPriceEth);
     tx = await contract.mintAndList(tokenURI, listedPriceWei);
@@ -242,7 +243,9 @@ export async function mintNFTWithWallet({ tokenURI, walletId, priceEth = 0 }) {
     tx = await contract.safeMint(account, tokenURI);
   }
 
+  onStage?.("chain", tx.hash);
   const receipt = await tx.wait();
+  onStage?.("confirmed", receipt.hash);
   let tokenId = parseMintedTokenId(contract, receipt);
 
   if (!tokenId) {
@@ -260,9 +263,9 @@ export async function mintNFTWithWallet({ tokenURI, walletId, priceEth = 0 }) {
   };
 }
 
-export async function listNFTWithWallet({ tokenId, priceEth, walletId }) {
+export async function listNFTWithWallet({ tokenId, priceEth, walletId, onStage }) {
   if (!tokenId) {
-    throw new Error("TokenId 无效，无法上架");
+    throw new Error("链上编号无效，无法上架");
   }
   const normalizedPrice = safeNumber(priceEth);
   if (normalizedPrice <= 0) {
@@ -274,8 +277,11 @@ export async function listNFTWithWallet({ tokenId, priceEth, walletId }) {
   const contract = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_CONTRACT_ABI, signer);
 
   const priceWei = toEthWei(normalizedPrice);
+  onStage?.("wallet");
   const tx = await contract.listToken(tokenId, priceWei);
+  onStage?.("chain", tx.hash);
   const receipt = await tx.wait();
+  onStage?.("confirmed", receipt.hash);
 
   return {
     account,
@@ -285,9 +291,9 @@ export async function listNFTWithWallet({ tokenId, priceEth, walletId }) {
   };
 }
 
-export async function buyNFTWithWallet({ tokenId, walletId, fallbackPriceEth = 0 }) {
+export async function buyNFTWithWallet({ tokenId, walletId, fallbackPriceEth = 0, onStage }) {
   if (!tokenId) {
-    throw new Error("TokenId 无效，无法购买");
+    throw new Error("链上编号无效，无法购买");
   }
 
   assertContractAddress();
@@ -328,8 +334,11 @@ export async function buyNFTWithWallet({ tokenId, walletId, fallbackPriceEth = 0
     throw new Error("不能购买自己发布的 NFT");
   }
 
+  onStage?.("wallet");
   const tx = await contract.buy(tokenId, { value: priceWei });
+  onStage?.("chain", tx.hash);
   const receipt = await tx.wait();
+  onStage?.("confirmed", receipt.hash);
 
   return {
     account,

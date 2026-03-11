@@ -79,7 +79,7 @@ export default function RegisterPage() {
               {uploading && <p className="mt-1 text-[11px] text-soft">上传中...</p>}
               {avatar && !uploading && (
                 <div className="mt-2 flex items-center gap-2">
-                  <img src={avatar} alt="avatar" className="h-10 w-10 rounded-full border border-white/20 object-cover" loading="lazy" decoding="async" />
+                  <img src={avatar} alt="头像" className="h-10 w-10 rounded-full border border-white/20 object-cover" loading="lazy" decoding="async" />
                   <span className="text-[11px] text-soft">已上传</span>
                 </div>
               )}

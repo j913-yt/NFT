@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -9,6 +9,7 @@ import {
   mintNFTWithWallet,
   NFT_CONTRACT_ADDRESS
 } from "@/lib/web3";
+import TxProgressCard from "@/components/TxProgressCard";
 
 const MAX_MAIN_FILE_MB = 100;
 const MAX_COVER_FILE_MB = 20;
@@ -19,6 +20,13 @@ const categoryOptions = [
   { value: "video", label: "视频" },
   { value: "other", label: "其他" }
 ];
+
+const categoryLabelMap = {
+  art: "艺术",
+  music: "音乐",
+  video: "视频",
+  other: "其他"
+};
 
 const priceUnits = ["ETH", "WEI", "GWEI", "BNB", "MATIC", "USDT", "USDC", "USD", "CNY"];
 
@@ -69,6 +77,10 @@ function exceedsSizeLimit(file, maxMB) {
   return file && file.size > maxMB * 1024 * 1024;
 }
 
+function bytesToMb(size) {
+  return `${(size / 1024 / 1024).toFixed(2)} MB`;
+}
+
 export default function CreateNFTPage() {
   const router = useRouter();
   const [form, setForm] = useState({
@@ -90,7 +102,10 @@ export default function CreateNFTPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("info");
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [lastSubmitFailed, setLastSubmitFailed] = useState(false);
   const [modal, setModal] = useState(null);
+  const [txProgress, setTxProgress] = useState(null);
 
   const localMediaType = useMemo(() => detectMediaType(selectedFile), [selectedFile]);
   const acceptTypes = useMemo(() => getAcceptByCategory(form.category), [form.category]);
@@ -98,6 +113,9 @@ export default function CreateNFTPage() {
   const convertedPriceEth = useMemo(() => {
     return convertPriceToEth(form.price, form.priceUnit);
   }, [form.price, form.priceUnit]);
+
+  const hasPriceInput = Number(form.price || 0) > 0;
+  const hasConversionIssue = hasPriceInput && convertedPriceEth <= 0;
 
   const updateMessage = (text, type = "info") => {
     setMessage(text);
@@ -170,11 +188,13 @@ export default function CreateNFTPage() {
     }
 
     setMessage("");
+    setLastSubmitFailed(false);
   };
 
   const handleCoverChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     if (!file.type?.startsWith("image/")) {
       e.target.value = "";
       updateMessage("封面必须是图片格式", "error");
@@ -191,6 +211,7 @@ export default function CreateNFTPage() {
     setCoverFile(file);
     setCoverPreview(URL.createObjectURL(file));
     setMessage("");
+    setLastSubmitFailed(false);
   };
 
   const checkWalletAndPrompt = () => {
@@ -200,8 +221,12 @@ export default function CreateNFTPage() {
     return ok;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const resetProgress = () => {
+    setUploadProgress(0);
+    setTxProgress(null);
+  };
+
+  const submitCreate = async () => {
     if (!checkWalletAndPrompt()) return;
 
     try {
@@ -218,36 +243,76 @@ export default function CreateNFTPage() {
 
       const priceEth = convertPriceToEth(inputPrice, form.priceUnit);
       if (inputPrice > 0 && priceEth <= 0) {
-        throw new Error("价格换算失败，请检查单位或汇率设置");
+        throw new Error("当前汇率配置异常，无法换算到 ETH，请检查单位和环境变量");
       }
 
       setLoading(true);
-      updateMessage("正在上传文件与元数据到 IPFS...", "info");
+      setLastSubmitFailed(false);
+      updateMessage("正在上传文件到 IPFS...", "info");
+      setUploadProgress(0);
+      setTxProgress({
+        step: "ipfs",
+        detail: "正在上传媒体与元数据到 IPFS...",
+        txHash: "",
+        error: ""
+      });
 
       const ipfs = await uploadNFTToIPFS({
         file: selectedFile,
         cover: coverFile,
         name: form.name.trim(),
         description: form.description.trim(),
-        category: form.category
+        category: form.category,
+        onUploadProgress: (evt) => {
+          const total = Number(evt?.total || 0);
+          if (total <= 0) return;
+          const percent = Math.min(100, Math.max(0, Math.round((Number(evt.loaded || 0) / total) * 100)));
+          setUploadProgress(percent);
+        }
       });
 
-      if (priceEth > 0) {
-        updateMessage("IPFS 上传完成，正在链上铸造并上架...", "info");
-      } else {
-        updateMessage("IPFS 上传完成，正在发起链上 mint...", "info");
-      }
+      setUploadProgress(100);
+      setTxProgress({
+        step: "wallet",
+        detail: priceEth > 0 ? "IPFS 上传完成，请在钱包中确认铸造并上架交易..." : "IPFS 上传完成，请在钱包中确认铸造交易...",
+        txHash: "",
+        error: ""
+      });
 
       const { account, txHash, tokenId, listedPriceEth } = await mintNFTWithWallet({
         tokenURI: ipfs.metadataUri,
-        priceEth
+        priceEth,
+        onStage: (stage, hash) => {
+          if (stage === "wallet") {
+            setTxProgress((prev) => ({
+              ...(prev || {}),
+              step: "wallet",
+              detail: priceEth > 0 ? "等待钱包确认（铸造 + 上架）..." : "等待钱包确认（铸造）...",
+              txHash: prev?.txHash || "",
+              error: ""
+            }));
+          } else if (stage === "chain") {
+            setTxProgress((prev) => ({
+              ...(prev || {}),
+              step: "chain",
+              detail: "交易已广播，正在等待链上打包确认...",
+              txHash: hash || prev?.txHash || "",
+              error: ""
+            }));
+          }
+        }
       });
-      setWallet(account);
 
-      updateMessage("链上交易完成，正在保存到业务数据库...", "info");
+      setWallet(account);
+      setTxProgress((prev) => ({
+        ...(prev || {}),
+        step: "sync",
+        detail: "链上确认完成，正在同步后台数据...",
+        txHash: txHash || prev?.txHash || "",
+        error: ""
+      }));
 
       const finalPriceEth = listedPriceEth > 0 ? listedPriceEth : 0;
-
       const payload = {
         contract: NFT_CONTRACT_ADDRESS,
         tokenId: tokenId || "",
@@ -266,6 +331,15 @@ export default function CreateNFTPage() {
       };
 
       const nft = await createNFT(payload);
+
+      setTxProgress((prev) => ({
+        ...(prev || {}),
+        step: "done",
+        detail: `创建完成，NFT #${nft.id} 已写入市场`,
+        txHash: txHash || prev?.txHash || "",
+        error: ""
+      }));
+
       setModal({
         id: nft.id,
         txHash,
@@ -278,10 +352,24 @@ export default function CreateNFTPage() {
       });
       setMessage("");
     } catch (err) {
-      updateMessage(err.message || "创建 NFT 失败", "error");
+      const errMessage = err.message || "创建 NFT 失败";
+      updateMessage(errMessage, "error");
+      setLastSubmitFailed(true);
+      setTxProgress((prev) => ({
+        ...(prev || {}),
+        step: prev?.step || "ipfs",
+        detail: "创建流程已中断，可修正后重试",
+        txHash: prev?.txHash || "",
+        error: errMessage
+      }));
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await submitCreate();
   };
 
   return (
@@ -308,7 +396,7 @@ export default function CreateNFTPage() {
               className="input-neo"
               value={form.name}
               onChange={handleChange("name")}
-              placeholder="Welcome to the Machine"
+              placeholder="请输入 NFT 名称"
               required
             />
           </div>
@@ -362,7 +450,21 @@ export default function CreateNFTPage() {
           </div>
 
           <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[11px] text-[#c9d6ff]">
-            换算后上架价: <span className="font-bold text-white">{formatEth(convertedPriceEth)} ETH</span>
+            {!hasPriceInput && (
+              <p>
+                换算后上架价: <span className="font-bold text-white">0 ETH（仅铸造不上架）</span>
+              </p>
+            )}
+            {hasPriceInput && !hasConversionIssue && (
+              <p>
+                换算后上架价: <span className="font-bold text-white">{formatEth(convertedPriceEth)} ETH</span>
+              </p>
+            )}
+            {hasPriceInput && hasConversionIssue && (
+              <p className="text-[#ffd7dc]">
+                当前汇率配置异常，暂无法换算到 ETH，请检查环境变量。
+              </p>
+            )}
           </div>
 
           <div>
@@ -387,6 +489,31 @@ export default function CreateNFTPage() {
           <button type="submit" disabled={loading} className="btn-primary w-full justify-center disabled:opacity-55">
             {loading ? "处理中，请在钱包确认..." : "上传到 IPFS 并铸造"}
           </button>
+
+          {loading && txProgress?.step === "ipfs" && (
+            <div className="rounded-lg border border-white/10 bg-black/25 px-3 py-2 text-[11px] text-soft">
+              <div className="mb-1 flex items-center justify-between">
+                <span>IPFS 上传进度</span>
+                <span>{uploadProgress}%</span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-[#3f7bff] to-[#18d2ff] transition-all"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {lastSubmitFailed && !loading && (
+            <button
+              type="button"
+              className="btn-outline w-full justify-center"
+              onClick={submitCreate}
+            >
+              重试上次创建
+            </button>
+          )}
         </form>
 
         {wallet && <p className="mt-3 break-all text-xs text-[#9eb0e5]">钱包: {wallet}</p>}
@@ -395,17 +522,33 @@ export default function CreateNFTPage() {
             {message}
           </p>
         )}
+
+        {txProgress && (
+          <TxProgressCard
+            title="创建进度"
+            steps={["ipfs", "wallet", "chain", "sync", "done"]}
+            currentStep={txProgress.step}
+            detail={txProgress.detail}
+            txHash={txProgress.txHash}
+            error={txProgress.error}
+          />
+        )}
       </section>
 
       <section className="glass-panel hero-glow relative overflow-hidden p-5 sm:p-6">
         <div className="relative z-10 mb-3 flex items-center justify-between">
           <h2 className="text-lg font-black text-white">实时预览</h2>
-          <span className="badge">{(form.category || "other").toUpperCase()}</span>
+          <span className="badge">{categoryLabelMap[form.category] || "其他"}</span>
         </div>
 
         {!selectedFile && (
-          <div className="flex h-[420px] items-center justify-center rounded-2xl border border-dashed border-white/20 bg-[#0b1020] text-xs text-soft">
-            选择媒体文件后可查看预览效果
+          <div className="flex h-[420px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-white/20 bg-[#0b1020] text-xs text-soft">
+            <p>选择媒体文件后可查看预览效果</p>
+            <div className="flex flex-wrap justify-center gap-2">
+              <span className="rounded-full border border-white/15 px-2 py-1 text-[11px]">图片/GIF</span>
+              <span className="rounded-full border border-white/15 px-2 py-1 text-[11px]">音频</span>
+              <span className="rounded-full border border-white/15 px-2 py-1 text-[11px]">视频</span>
+            </div>
           </div>
         )}
 
@@ -441,8 +584,8 @@ export default function CreateNFTPage() {
               </p>
               <p className="mt-1">文件: {selectedFile.name}</p>
               <p className="mt-1">输入价格: {form.price || 0} {form.priceUnit}</p>
-              <p className="mt-1">链上价格: {formatEth(convertedPriceEth)} ETH</p>
-              <p className="mt-1">大小: {(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+              <p className="mt-1">链上价格: {hasConversionIssue ? "换算失败" : `${formatEth(convertedPriceEth)} ETH`}</p>
+              <p className="mt-1">大小: {bytesToMb(selectedFile.size)}</p>
             </div>
           </div>
         )}
@@ -489,15 +632,24 @@ export default function CreateNFTPage() {
             <div className="mt-3 space-y-1 text-xs text-soft">
               <p>名称: {modal.name}</p>
               <p>ID: {modal.id}</p>
-              <p>Token: {modal.tokenId || "pending"}</p>
+              <p>链上编号: {modal.tokenId || "待确认"}</p>
               <p>输入价格: {modal.sourcePrice || 0} {modal.sourceUnit}</p>
               <p>链上价格: {formatEth(modal.ethPrice)} ETH</p>
-              <p className="break-all">Metadata URI: {modal.metadataUri}</p>
+              <p className="break-all">元数据 URI: {modal.metadataUri}</p>
               <p className="break-all">交易哈希: {modal.txHash}</p>
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <button className="btn-outline px-3 py-1.5 text-xs" onClick={() => setModal(null)}>
                 继续
+              </button>
+              <button
+                className="btn-outline px-3 py-1.5 text-xs"
+                onClick={() => {
+                  setModal(null);
+                  resetProgress();
+                }}
+              >
+                关闭进度
               </button>
               <button className="btn-primary px-3 py-1.5 text-xs" onClick={() => router.push("/nfts")}>
                 查看市场
@@ -506,6 +658,7 @@ export default function CreateNFTPage() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

@@ -22,7 +22,10 @@ export default function WalletConnectButton() {
   const [selectedWalletId, setSelectedWalletId] = useState("");
   const [stage, setStage] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const [copied, setCopied] = useState(false);
   const opIdRef = useRef(0);
+  const copyTimerRef = useRef(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -44,6 +47,14 @@ export default function WalletConnectButton() {
     if (detected.length > 0) {
       setSelectedWalletId((prev) => prev || detected[0].id);
     }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) {
+        clearTimeout(copyTimerRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -94,14 +105,43 @@ export default function WalletConnectButton() {
     setLoading(false);
     setStage(null);
     setShowModal(false);
+    setShowAccountMenu(false);
+    setCopied(false);
     if (navigate) router.push("/");
+  };
+
+  const handleCopyAddress = async () => {
+    if (!account || typeof window === "undefined") return;
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(account);
+      } else {
+        const input = document.createElement("textarea");
+        input.value = account;
+        input.style.position = "fixed";
+        input.style.opacity = "0";
+        document.body.appendChild(input);
+        input.focus();
+        input.select();
+        document.execCommand("copy");
+        document.body.removeChild(input);
+      }
+      setCopied(true);
+      if (copyTimerRef.current) {
+        clearTimeout(copyTimerRef.current);
+      }
+      copyTimerRef.current = setTimeout(() => setCopied(false), 1500);
+    } catch {
+      alert("复制失败，请手动复制地址");
+    }
   };
 
   const handleClick = async () => {
     if (loading) return;
 
     if (loggedIn) {
-      router.push("/profile");
+      setShowAccountMenu((prev) => !prev);
       return;
     }
 
@@ -166,6 +206,7 @@ export default function WalletConnectButton() {
       setLoggedIn(true);
       setShowModal(false);
       setStage(null);
+      setShowAccountMenu(false);
       loginSucceeded = true;
       router.push("/profile");
     } catch (err) {
@@ -185,13 +226,16 @@ export default function WalletConnectButton() {
   };
 
   const shortAddr = account ? `${account.slice(0, 6)}...${account.slice(-4)}` : "";
+  const connectedWalletLabel =
+    walletOptions.find((w) => w.id === selectedWalletId)?.name || "已连接钱包";
+  const avatarLabel = "钱包地址";
 
   return (
     <>
       <div className="flex items-center gap-2">
         {walletOptions.length > 1 && (
           <select
-            className="rounded-lg border border-white/20 bg-[#0f1320] px-2 py-1 text-[11px] text-[#d8e0ff] outline-none"
+            className="rounded-lg border border-white/20 bg-[#131b2a] px-2 py-1 text-[11px] text-[#d8e0ff] outline-none"
             value={selectedWalletId}
             onChange={(e) => setSelectedWalletId(e.target.value)}
           >
@@ -209,21 +253,11 @@ export default function WalletConnectButton() {
           onClick={handleClick}
           disabled={loading}
           className={`rounded-xl px-3 py-1.5 text-xs font-semibold text-white transition ${
-            loggedIn ? "bg-[#284fb8] hover:bg-[#325fd7]" : "bg-[#ff1f9b] hover:bg-[#ff43ae]"
+            loggedIn ? "bg-[#2c4fa7] hover:bg-[#375fbf]" : "bg-[#4b86ff] hover:bg-[#5a95ff]"
           }`}
         >
           {loading ? "处理中..." : loggedIn ? shortAddr : "连接钱包"}
         </button>
-
-        {loggedIn && (
-          <button
-            type="button"
-            onClick={() => handleLogout(true)}
-            className="btn-outline px-3 py-1.5 text-xs"
-          >
-            退出登录
-          </button>
-        )}
       </div>
 
       {showModal && (
@@ -252,6 +286,78 @@ export default function WalletConnectButton() {
                   setStage(null);
                   setShowModal(false);
                 }}
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {loggedIn && showAccountMenu && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center bg-black/55 px-4 pt-24 backdrop-blur-sm"
+          onClick={() => setShowAccountMenu(false)}
+        >
+          <div
+            className="glass-panel w-full max-w-md p-5 text-xs text-soft"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="relative overflow-hidden rounded-2xl border border-white/15 bg-gradient-to-br from-[#1a2944] to-[#152136] p-4">
+              <div className="absolute -right-8 -top-8 h-20 w-20 rounded-full bg-[#4b86ff2b]" />
+              <div className="absolute -bottom-8 -left-8 h-20 w-20 rounded-full bg-[#2bbf9c1e]" />
+
+              <div className="relative z-10 flex items-center gap-3">
+                <div className="flex h-12 w-20 shrink-0 items-center justify-center rounded-xl border border-white/25 bg-white/10 px-2 text-[11px] font-bold leading-4 text-white">
+                  {avatarLabel}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-3xl font-black text-white">{shortAddr}</p>
+                  <p className="mt-1 text-[11px] text-[#b8c8ee]">{connectedWalletLabel}</p>
+                </div>
+                <span className="rounded-full border border-[#57d88a88] bg-[#57d88a22] px-2 py-1 text-[10px] font-semibold text-[#ddffea]">
+                  已连接
+                </span>
+              </div>
+
+              <p className="relative z-10 mt-3 break-all rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-[11px] text-[#c7d6ff]">
+                {account}
+              </p>
+            </div>
+
+            <p className="mt-3 text-[11px] text-[#9eb1df]">
+              可以在这里快速复制地址、进入个人中心或退出登录。
+            </p>
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                className="rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-[12px] font-semibold text-[#d6e0ff] transition hover:bg-white/10"
+                onClick={handleCopyAddress}
+              >
+                {copied ? "已复制" : "复制地址"}
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-[12px] font-semibold text-[#d6e0ff] transition hover:bg-white/10"
+                onClick={() => {
+                  setShowAccountMenu(false);
+                  router.push("/profile");
+                }}
+              >
+                个人中心
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-[12px] font-semibold text-[#d6e0ff] transition hover:bg-white/10"
+                onClick={() => handleLogout(true)}
+              >
+                退出登录
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-[12px] font-semibold text-[#d6e0ff] transition hover:bg-white/10"
+                onClick={() => setShowAccountMenu(false)}
               >
                 取消
               </button>
