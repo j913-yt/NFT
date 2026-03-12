@@ -51,21 +51,23 @@ export default function RootLayout({ children }) {
 
         <div className="min-h-screen">
           <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0d1118dd] backdrop-blur-xl">
-            <div className="mx-auto max-w-[1320px] px-4 py-3 sm:px-6">
+            <div className="mx-auto max-w-[1320px] px-4 py-4 sm:px-6 sm:py-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-4">
-                  <Link href="/" className="flex items-center gap-2.5">
-                    <div className="float-chip flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#4b86ff] to-[#2bbf9c] text-sm font-black text-white shadow-lg shadow-[#4b86ff55]">
-                      B
-                    </div>
+                <div className="flex items-center gap-5">
+                  <Link href="/" className="flex items-center gap-3">
+                    <img
+                      src="/logo-mark.svg"
+                      alt="NFT logo"
+                      className="float-chip h-10 w-10 rounded-xl object-cover shadow-lg shadow-[#4b86ff55] sm:h-11 sm:w-11"
+                    />
                     <div>
-                      <p className="text-sm font-extrabold tracking-wide text-white">NFT数字藏品市场</p>
+                      <p className="text-base font-extrabold tracking-wide text-white sm:text-[1.45rem]">NFT数字藏品市场</p>
                     </div>
                   </Link>
 
-                  <div className="hidden items-center gap-2 md:flex">
+                  <div className="hidden items-center gap-2.5 md:flex">
                     <details className="group relative">
-                      <summary className="cursor-pointer list-none rounded-lg px-3 py-1.5 text-xs font-semibold text-[#d8dff1] transition hover:bg-white/10">
+                      <summary className="top-nav-pill cursor-pointer list-none">
                         导航
                       </summary>
                       <div className="absolute left-0 top-[110%] w-52 rounded-xl border border-white/15 bg-[#12192a] p-2 shadow-2xl shadow-black/40">
@@ -73,14 +75,14 @@ export default function RootLayout({ children }) {
                           <Link
                             key={item.href}
                             href={item.href}
-                            className="block rounded-lg px-3 py-2 text-xs font-semibold text-[#d6deef] hover:bg-white/10"
+                            className="top-nav-menu-item block rounded-lg px-3 py-2 text-xs font-semibold text-[#d6deef]"
                           >
                             {item.label}
                           </Link>
                         ))}
                       </div>
                     </details>
-                    <Link href="/nfts" className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[#d8dff1] hover:bg-white/10">
+                    <Link href="/nfts" className="top-nav-pill">
                       浏览
                     </Link>
                   </div>
@@ -99,7 +101,7 @@ export default function RootLayout({ children }) {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="whitespace-nowrap rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-[#d8dff1] hover:bg-white/10"
+                    className="top-nav-pill whitespace-nowrap text-xs"
                   >
                     {item.label}
                   </Link>
