@@ -7,11 +7,14 @@ export const NFT_CONTRACT_ADDRESS =
 export const NFT_CONTRACT_ABI = [
   "function safeMint(address to, string uri) external returns (uint256)",
   "function mintAndList(string uri, uint256 priceWei) external returns (uint256)",
+  "function totalMinted() external view returns (uint256)",
   "function listToken(uint256 tokenId, uint256 priceWei) external",
+  "function cancelListing(uint256 tokenId) external",
   "function buy(uint256 tokenId) external payable",
   "function getListing(uint256 tokenId) external view returns (address seller, uint256 priceWei, bool active)",
   "event Minted(address indexed to, uint256 indexed tokenId, string tokenURI)",
   "event Listed(uint256 indexed tokenId, address indexed seller, uint256 priceWei)",
+  "event Delisted(uint256 indexed tokenId, address indexed seller)",
   "event Purchased(uint256 indexed tokenId, address indexed seller, address indexed buyer, uint256 priceWei)"
 ];
 
@@ -291,7 +294,28 @@ export async function listNFTWithWallet({ tokenId, priceEth, walletId, onStage }
   };
 }
 
-export async function buyNFTWithWallet({ tokenId, walletId, fallbackPriceEth = 0, onStage }) {
+export async function delistNFTWithWallet({ tokenId, walletId, onStage }) {
+  if (!tokenId) {
+    throw new Error("链上编号无效，无法下架");
+  }
+
+  assertContractAddress();
+  const { signer, account } = await getProviderAndSigner(walletId);
+  const contract = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_CONTRACT_ABI, signer);
+
+  onStage?.("wallet");
+  const tx = await contract.cancelListing(tokenId);
+  onStage?.("chain", tx.hash);
+  const receipt = await tx.wait();
+  onStage?.("confirmed", receipt.hash);
+
+  return {
+    account,
+    txHash: receipt.hash
+  };
+}
+
+export async function buyNFTWithWallet({ tokenId, walletId, fallbackPriceWei = "", fallbackPriceEth = 0, onStage }) {
   if (!tokenId) {
     throw new Error("链上编号无效，无法购买");
   }
@@ -317,13 +341,24 @@ export async function buyNFTWithWallet({ tokenId, walletId, fallbackPriceEth = 0
       throw new Error("当前合约是旧版（仅支持铸造），不支持真实购买。请部署新版合约并更新 NEXT_PUBLIC_NFT_CONTRACT_ADDRESS");
     }
 
-    const fallback = safeNumber(fallbackPriceEth);
-    if (fallback <= 0) {
-      throw new Error("当前合约无法读取上架信息，且没有可用价格，无法发起购买");
+    const fallbackWei = String(fallbackPriceWei || "").trim();
+    if (fallbackWei) {
+      try {
+        priceWei = BigInt(fallbackWei);
+        active = true;
+        listingSource = "fallback-price-wei";
+      } catch {
+        throw new Error("后端返回的 priceWei 无效，无法发起购买");
+      }
+    } else {
+      const fallback = safeNumber(fallbackPriceEth);
+      if (fallback <= 0) {
+        throw new Error("当前合约无法读取上架信息，且没有可用价格，无法发起购买");
+      }
+      priceWei = toEthWei(fallback);
+      active = true;
+      listingSource = "fallback-price";
     }
-    priceWei = toEthWei(fallback);
-    active = true;
-    listingSource = "fallback-price";
   }
 
   if (!active || priceWei <= 0n) {

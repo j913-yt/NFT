@@ -246,6 +246,24 @@ body::before {
   transition: border-color 0.18s ease, background-color 0.18s ease;
 }
 
+.type-tab-icon {
+  width: 1rem;
+  height: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(220, 232, 255, 0.95);
+  flex-shrink: 0;
+}
+
+.type-tab-icon svg {
+  width: 0.68rem;
+  height: 0.68rem;
+  display: block;
+}
+
 .type-tab:hover {
   background: rgba(255, 255, 255, 0.08);
 }
@@ -253,6 +271,11 @@ body::before {
 .type-tab.active {
   border-color: rgba(75, 134, 255, 0.8);
   background: rgba(75, 134, 255, 0.22);
+  color: #fff;
+}
+
+.type-tab.active .type-tab-icon {
+  background: rgba(255, 255, 255, 0.16);
   color: #fff;
 }
 

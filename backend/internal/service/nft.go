@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"nft-backend/internal/model"
+	"nft-backend/internal/util"
 
 	"gorm.io/gorm"
 )
@@ -25,9 +26,9 @@ func (s *NFTService) List(category string, listedOnly *bool) ([]model.NFT, error
 	}
 	if listedOnly != nil {
 		if *listedOnly {
-			query = query.Where("price > 0")
+			query = query.Where("price_wei IS NOT NULL AND price_wei <> '' AND price_wei <> ?", "0")
 		} else {
-			query = query.Where("price <= 0")
+			query = query.Where("price_wei IS NULL OR price_wei = '' OR price_wei = ?", "0")
 		}
 	}
 	if err := query.Find(&nfts).Error; err != nil {
@@ -37,6 +38,17 @@ func (s *NFTService) List(category string, listedOnly *bool) ([]model.NFT, error
 }
 
 func (s *NFTService) Create(nft *model.NFT) error {
+	priceWei, displayPrice, err := util.ResolveWeiAndDisplay(nft.PriceWei, nft.Price)
+	if err != nil {
+		return err
+	}
+
+	nft.PriceWei = priceWei
+	nft.Price = displayPrice
+	if nft.PriceUnit == "" {
+		nft.PriceUnit = "ETH"
+	}
+
 	return s.db.Create(nft).Error
 }
 
@@ -48,7 +60,6 @@ func (s *NFTService) GetByID(id uint) (*model.NFT, error) {
 	return &nft, nil
 }
 
-// GetWithOwner returns NFT and owner profile if exists.
 func (s *NFTService) GetWithOwner(id uint) (*model.NFT, *model.User, error) {
 	var nft model.NFT
 	if err := s.db.First(&nft, id).Error; err != nil {
@@ -69,27 +80,28 @@ func (s *NFTService) GetWithOwner(id uint) (*model.NFT, *model.User, error) {
 func (s *NFTService) UpdateOwnerAndDelist(id uint, ownerID uint) error {
 	return s.db.Model(&model.NFT{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"owner_id":   ownerID,
+		"price_wei":  "0",
 		"price":      0,
 		"price_unit": "ETH",
 	}).Error
 }
 
-func (s *NFTService) UpdateListing(nftID uint, ownerID uint, price float64, priceUnit string) (*model.NFT, error) {
+func (s *NFTService) UpdateListing(nftID uint, ownerID uint, priceWei string) (*model.NFT, error) {
 	if nftID == 0 || ownerID == 0 {
 		return nil, errors.New("参数错误")
 	}
-	if price < 0 {
-		return nil, errors.New("价格不能小于 0")
+
+	normalizedWei, err := util.NormalizeWeiString(priceWei)
+	if err != nil {
+		return nil, errors.New("priceWei 必须是非负整数")
 	}
 
-	priceUnit = strings.ToUpper(strings.TrimSpace(priceUnit))
-	if priceUnit == "" {
-		priceUnit = "ETH"
-	}
+	displayPrice := util.DisplayETHFromWeiString(normalizedWei)
 
 	res := s.db.Model(&model.NFT{}).Where("id = ? AND owner_id = ?", nftID, ownerID).Updates(map[string]interface{}{
-		"price":      price,
-		"price_unit": priceUnit,
+		"price_wei":  normalizedWei,
+		"price":      displayPrice,
+		"price_unit": "ETH",
 	})
 	if res.Error != nil {
 		return nil, res.Error
@@ -99,4 +111,8 @@ func (s *NFTService) UpdateListing(nftID uint, ownerID uint, price float64, pric
 	}
 
 	return s.GetByID(nftID)
+}
+
+func NormalizeNFTCategory(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
 }

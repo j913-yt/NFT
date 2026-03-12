@@ -7,6 +7,7 @@ import (
 
 	"nft-backend/internal/middleware"
 	"nft-backend/internal/service"
+	"nft-backend/internal/util"
 
 	"github.com/gorilla/mux"
 )
@@ -20,9 +21,10 @@ func NewOrderHandler(svc *service.OrderService) *OrderHandler {
 }
 
 type createOrderReq struct {
-	NFTID  uint    `json:"nftId"`
-	Price  float64 `json:"price"`
-	TxHash string  `json:"txHash"`
+	NFTID    uint    `json:"nftId"`
+	PriceWei string  `json:"priceWei"`
+	Price    float64 `json:"price"`
+	TxHash   string  `json:"txHash"`
 }
 
 func (h *OrderHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +40,17 @@ func (h *OrderHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	order, err := h.svc.CreateOrder(uid, req.NFTID, req.Price, req.TxHash)
+	priceWei := req.PriceWei
+	if priceWei == "" {
+		var err error
+		priceWei, _, err = util.ResolveWeiAndDisplay("", req.Price)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"message": "价格信息无效"})
+			return
+		}
+	}
+
+	order, err := h.svc.CreateOrder(uid, req.NFTID, priceWei, req.TxHash)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": err.Error()})
 		return
@@ -80,8 +92,7 @@ func (h *OrderHandler) ListBought(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *OrderHandler) ListByNFT(w http.ResponseWriter, r *http.Request) {
-	idStr := mux.Vars(r)["id"]
-	id64, err := strconv.ParseUint(idStr, 10, 64)
+	id64, err := strconv.ParseUint(mux.Vars(r)["id"], 10, 64)
 	if err != nil || id64 == 0 {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "参数错误"})
 		return

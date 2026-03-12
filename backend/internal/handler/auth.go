@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"nft-backend/internal/middleware"
 	"nft-backend/internal/service"
@@ -16,22 +17,6 @@ func NewAuthHandler(svc *service.AuthService) *AuthHandler {
 	return &AuthHandler{svc: svc}
 }
 
-type registerReq struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Username string `json:"username"`
-	Avatar   string `json:"avatar"`
-}
-
-type loginReq struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-type walletNonceReq struct {
-	Wallet string `json:"wallet"`
-}
-
 type walletLoginReq struct {
 	Wallet    string `json:"wallet"`
 	Signature string `json:"signature"`
@@ -39,6 +24,7 @@ type walletLoginReq struct {
 
 type updateProfileReq struct {
 	Username string `json:"username"`
+	Avatar   string `json:"avatar"`
 }
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {
@@ -47,48 +33,8 @@ func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
-	var req registerReq
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "参数错误"})
-		return
-	}
-
-	if req.Email == "" || req.Password == "" || req.Username == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "邮箱、密码和用户名不能为空"})
-		return
-	}
-
-	if err := h.svc.Register(req.Email, req.Password, req.Username, req.Avatar); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"message": err.Error()})
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]string{"message": "注册成功"})
-}
-
-func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var req loginReq
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "参数错误"})
-		return
-	}
-
-	token, user, err := h.svc.Login(req.Email, req.Password)
-	if err != nil {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"message": err.Error()})
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"token": token,
-		"user":  user,
-	})
-}
-
-// WalletNonce 返回指定钱包的随机 nonce（如果用户不存在会自动创建），用于后续签名。
 func (h *AuthHandler) WalletNonce(w http.ResponseWriter, r *http.Request) {
-	wallet := r.URL.Query().Get("wallet")
+	wallet := strings.TrimSpace(r.URL.Query().Get("wallet"))
 	if wallet == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "钱包地址不能为空"})
 		return
@@ -103,11 +49,10 @@ func (h *AuthHandler) WalletNonce(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"nonce": nonce})
 }
 
-// WalletLogin 校验签名并签发 JWT。
 func (h *AuthHandler) WalletLogin(w http.ResponseWriter, r *http.Request) {
 	var req walletLoginReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "参数错误"})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "请求参数错误"})
 		return
 	}
 
@@ -123,7 +68,6 @@ func (h *AuthHandler) WalletLogin(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// UpdateProfile 允许已登录用户更新用户名。
 func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	uid, ok := middleware.UserIDFromContext(r.Context())
 	if !ok || uid == 0 {
@@ -133,11 +77,11 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 	var req updateProfileReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "参数错误"})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "请求参数错误"})
 		return
 	}
 
-	user, err := h.svc.UpdateUsername(uid, req.Username)
+	user, err := h.svc.UpdateProfile(uid, req.Username, req.Avatar)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": err.Error()})
 		return

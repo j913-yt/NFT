@@ -279,7 +279,7 @@ export default function CreateNFTPage() {
         error: ""
       });
 
-      const { account, txHash, tokenId, listedPriceEth } = await mintNFTWithWallet({
+      const { account, txHash, tokenId, listedPriceEth, listedPriceWei } = await mintNFTWithWallet({
         tokenURI: ipfs.metadataUri,
         priceEth,
         onStage: (stage, hash) => {
@@ -326,6 +326,7 @@ export default function CreateNFTPage() {
         metadataUrl: ipfs.metadataUrl,
         storage: "ipfs",
         category: form.category,
+        priceWei: listedPriceWei || "0",
         price: finalPriceEth,
         priceUnit: "ETH"
       };

@@ -9,6 +9,7 @@ import (
 	"nft-backend/internal/middleware"
 	"nft-backend/internal/model"
 	"nft-backend/internal/service"
+	"nft-backend/internal/util"
 
 	"github.com/gorilla/mux"
 )
@@ -76,10 +77,16 @@ func (h *NFTHandler) Create(w http.ResponseWriter, r *http.Request) {
 	nft.Name = strings.TrimSpace(nft.Name)
 	nft.Description = strings.TrimSpace(nft.Description)
 	nft.Category = strings.ToLower(strings.TrimSpace(nft.Category))
+	nft.Contract = strings.TrimSpace(nft.Contract)
+	nft.TokenID = strings.TrimSpace(nft.TokenID)
 	nft.PriceUnit = strings.ToUpper(strings.TrimSpace(nft.PriceUnit))
 
 	if nft.Name == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "名称不能为空"})
+		return
+	}
+	if nft.Contract == "" || nft.TokenID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "contract 和 tokenId 不能为空"})
 		return
 	}
 	if nft.Category == "" {
@@ -102,10 +109,16 @@ func (h *NFTHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if nft.TokenURI == "" {
 		nft.TokenURI = nft.ImageURL
 	}
-	if nft.PriceUnit == "" {
-		nft.PriceUnit = "ETH"
+
+	priceWei, displayPrice, err := util.ResolveWeiAndDisplay(nft.PriceWei, nft.Price)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "价格信息无效"})
+		return
 	}
 
+	nft.PriceWei = priceWei
+	nft.Price = displayPrice
+	nft.PriceUnit = "ETH"
 	nft.OwnerID = uid
 
 	if err := h.svc.Create(&nft); err != nil {
@@ -116,9 +129,7 @@ func (h *NFTHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *NFTHandler) Get(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	idStr := vars["id"]
-	id64, err := strconv.ParseUint(idStr, 10, 64)
+	id64, err := strconv.ParseUint(mux.Vars(r)["id"], 10, 64)
 	if err != nil || id64 == 0 {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "参数错误"})
 		return
@@ -141,8 +152,8 @@ func (h *NFTHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 type updateListingReq struct {
-	Price     float64 `json:"price"`
-	PriceUnit string  `json:"priceUnit"`
+	PriceWei string  `json:"priceWei"`
+	Price    float64 `json:"price"`
 }
 
 func (h *NFTHandler) UpdateListing(w http.ResponseWriter, r *http.Request) {
@@ -152,8 +163,7 @@ func (h *NFTHandler) UpdateListing(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idStr := mux.Vars(r)["id"]
-	id64, err := strconv.ParseUint(idStr, 10, 64)
+	id64, err := strconv.ParseUint(mux.Vars(r)["id"], 10, 64)
 	if err != nil || id64 == 0 {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "参数错误"})
 		return
@@ -165,7 +175,17 @@ func (h *NFTHandler) UpdateListing(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	nft, err := h.svc.UpdateListing(uint(id64), uid, req.Price, req.PriceUnit)
+	priceWei := strings.TrimSpace(req.PriceWei)
+	if priceWei == "" {
+		var convErr error
+		priceWei, _, convErr = util.ResolveWeiAndDisplay("", req.Price)
+		if convErr != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"message": "价格信息无效"})
+			return
+		}
+	}
+
+	nft, err := h.svc.UpdateListing(uint(id64), uid, priceWei)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": err.Error()})
 		return

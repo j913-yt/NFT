@@ -2,7 +2,6 @@ package model
 
 import "time"
 
-// User 表示平台用户
 type User struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	Email     *string   `gorm:"uniqueIndex;size:255" json:"email"`
@@ -14,11 +13,10 @@ type User struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
-// NFT 表示一个 NFT 资产的链下记录
 type NFT struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
-	Contract    string    `gorm:"size:255" json:"contract"`
-	TokenID     string    `gorm:"size:255" json:"tokenId"`
+	Contract    string    `gorm:"size:255;not null;uniqueIndex:idx_nft_contract_token" json:"contract"`
+	TokenID     string    `gorm:"size:255;not null;uniqueIndex:idx_nft_contract_token" json:"tokenId"`
 	Name        string    `gorm:"size:255" json:"name"`
 	Description string    `gorm:"size:1000" json:"description"`
 	ImageURL    string    `gorm:"size:1000" json:"imageUrl"`
@@ -28,21 +26,22 @@ type NFT struct {
 	TokenURI    string    `gorm:"size:1000" json:"tokenUri"`
 	MetadataURL string    `gorm:"size:1000" json:"metadataUrl"`
 	Storage     string    `gorm:"size:50" json:"storage"`
-	Category    string    `gorm:"size:100" json:"category"`
-	OwnerID     uint      `json:"ownerId"`
+	Category    string    `gorm:"size:100;index" json:"category"`
+	OwnerID     uint      `gorm:"index" json:"ownerId"`
+	PriceWei    string    `gorm:"size:78;type:varchar(78);not null;default:'0';index" json:"priceWei"`
 	Price       float64   `json:"price"`
 	PriceUnit   string    `gorm:"size:20" json:"priceUnit"`
-	CreatedAt   time.Time `json:"createdAt"`
+	CreatedAt   time.Time `gorm:"index" json:"createdAt"`
 }
 
-// Order 表示一次 NFT 交易订单
 type Order struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
-	NFTID     uint      `json:"nftId"`
-	BuyerID   uint      `json:"buyerId"`
-	SellerID  uint      `json:"sellerId"`
+	NFTID     uint      `gorm:"index;uniqueIndex:idx_order_txhash_nft" json:"nftId"`
+	BuyerID   uint      `gorm:"index" json:"buyerId"`
+	SellerID  uint      `gorm:"index" json:"sellerId"`
+	PriceWei  string    `gorm:"size:78;type:varchar(78);not null;default:'0';index" json:"priceWei"`
 	Price     float64   `json:"price"`
-	TxHash    string    `gorm:"size:255" json:"txHash"`
+	TxHash    string    `gorm:"size:255;not null;uniqueIndex:idx_order_txhash_nft" json:"txHash"`
 	Status    string    `gorm:"size:50" json:"status"`
-	CreatedAt time.Time `json:"createdAt"`
+	CreatedAt time.Time `gorm:"index" json:"createdAt"`
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"nft-backend/internal/model"
+	"nft-backend/internal/util"
 
 	"gorm.io/gorm"
 )
@@ -26,6 +27,7 @@ type SoldOrderItem struct {
 	BuyerID      uint      `json:"buyerId"`
 	BuyerWallet  string    `json:"buyerWallet"`
 	BuyerName    string    `json:"buyerName"`
+	PriceWei     string    `json:"priceWei"`
 	Price        float64   `json:"price"`
 	TxHash       string    `json:"txHash"`
 	Status       string    `json:"status"`
@@ -43,6 +45,7 @@ type BoughtOrderItem struct {
 	SellerID     uint      `json:"sellerId"`
 	SellerWallet string    `json:"sellerWallet"`
 	SellerName   string    `json:"sellerName"`
+	PriceWei     string    `json:"priceWei"`
 	Price        float64   `json:"price"`
 	TxHash       string    `json:"txHash"`
 	Status       string    `json:"status"`
@@ -52,6 +55,7 @@ type BoughtOrderItem struct {
 type NFTOrderHistoryItem struct {
 	ID           uint      `json:"id"`
 	NFTID        uint      `json:"nftId"`
+	PriceWei     string    `json:"priceWei"`
 	Price        float64   `json:"price"`
 	TxHash       string    `json:"txHash"`
 	Status       string    `json:"status"`
@@ -68,8 +72,7 @@ func NewOrderService(db *gorm.DB, nftSvc *NFTService) *OrderService {
 	return &OrderService{db: db, nftSvc: nftSvc}
 }
 
-// CreateOrder creates an order and syncs backend ownership/listing after a successful on-chain tx hash is provided.
-func (s *OrderService) CreateOrder(buyerID uint, nftID uint, price float64, txHash string) (*model.Order, error) {
+func (s *OrderService) CreateOrder(buyerID uint, nftID uint, priceWei string, txHash string) (*model.Order, error) {
 	if buyerID == 0 || nftID == 0 {
 		return nil, errors.New("参数错误")
 	}
@@ -83,15 +86,15 @@ func (s *OrderService) CreateOrder(buyerID uint, nftID uint, price float64, txHa
 	if err != nil {
 		return nil, errors.New("NFT 不存在")
 	}
-
 	if nft.OwnerID == buyerID {
 		return nil, errors.New("不能购买自己的 NFT")
 	}
 
-	if price <= 0 {
-		price = nft.Price
+	normalizedWei, err := util.NormalizeWeiString(priceWei)
+	if err != nil || normalizedWei == "0" {
+		normalizedWei = util.MustNormalizeWeiString(nft.PriceWei)
 	}
-	if price <= 0 {
+	if normalizedWei == "0" {
 		return nil, errors.New("NFT 未设置有效价格")
 	}
 
@@ -100,7 +103,8 @@ func (s *OrderService) CreateOrder(buyerID uint, nftID uint, price float64, txHa
 		NFTID:    nftID,
 		BuyerID:  buyerID,
 		SellerID: sellerID,
-		Price:    price,
+		PriceWei: normalizedWei,
+		Price:    util.DisplayETHFromWeiString(normalizedWei),
 		TxHash:   txHash,
 		Status:   "success",
 	}
@@ -114,6 +118,7 @@ func (s *OrderService) CreateOrder(buyerID uint, nftID uint, price float64, txHa
 			Where("id = ? AND owner_id = ?", nftID, sellerID).
 			Updates(map[string]interface{}{
 				"owner_id":   buyerID,
+				"price_wei":  "0",
 				"price":      0,
 				"price_unit": "ETH",
 			})
@@ -144,6 +149,7 @@ func (s *OrderService) ListSoldOrders(sellerID uint) ([]SoldOrderItem, error) {
 			o.id,
 			o.nft_id,
 			o.buyer_id,
+			o.price_wei,
 			o.price,
 			o.tx_hash,
 			o.status,
@@ -180,6 +186,7 @@ func (s *OrderService) ListBoughtOrders(buyerID uint) ([]BoughtOrderItem, error)
 			o.id,
 			o.nft_id,
 			o.seller_id,
+			o.price_wei,
 			o.price,
 			o.tx_hash,
 			o.status,
@@ -192,7 +199,7 @@ func (s *OrderService) ListBoughtOrders(buyerID uint) ([]BoughtOrderItem, error)
 			s.wallet AS seller_wallet,
 			s.username AS seller_name
 		`).
-		Joins("JOIN nfts AS n ON n.id = o.nft_id AND n.owner_id = ?", buyerID).
+		Joins("LEFT JOIN nfts AS n ON n.id = o.nft_id").
 		Joins("LEFT JOIN users AS s ON s.id = o.seller_id").
 		Where("o.buyer_id = ?", buyerID).
 		Order("o.id DESC").
@@ -215,6 +222,7 @@ func (s *OrderService) ListByNFTID(nftID uint) ([]NFTOrderHistoryItem, error) {
 		Select(`
 			o.id,
 			o.nft_id,
+			o.price_wei,
 			o.price,
 			o.tx_hash,
 			o.status,

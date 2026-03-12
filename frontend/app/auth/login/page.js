@@ -1,79 +1,40 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { login } from "@/lib/api";
+import WalletConnectButton from "@/components/WalletConnectButton";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState("info");
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage("");
-    try {
-      await login(email, password);
-      setMessageType("success");
-      setMessage("登录成功，正在跳转...");
-      setTimeout(() => router.push("/profile"), 450);
-    } catch (err) {
-      setMessageType("error");
-      setMessage(err.message || "登录失败");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="mx-auto w-full max-w-md">
       <div className="glass-panel hero-glow relative overflow-hidden p-6">
         <div className="relative z-10">
-          <span className="badge">账号登录</span>
-          <h1 className="mt-3 text-3xl font-black text-white">欢迎登录</h1>
+          <span className="badge">钱包登录</span>
+          <h1 className="mt-3 text-3xl font-black text-white">使用钱包进入平台</h1>
           <p className="mt-2 text-xs leading-6 text-soft">
-            登录后即可管理 NFT 资产并发起创建流程。
+            邮箱注册和邮箱登录已经下线，现在仅支持通过钱包连接和签名来完成身份验证。
           </p>
 
-          <form onSubmit={handleSubmit} className="mt-5 space-y-3 text-sm">
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[#d6e0ff]">邮箱</label>
-              <input
-                type="email"
-                className="input-neo"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="请输入邮箱地址"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[#d6e0ff]">密码</label>
-              <input
-                type="password"
-                className="input-neo"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="至少 6 位"
-              />
-            </div>
+          <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-soft">
+            <p className="font-semibold text-white">登录步骤</p>
+            <ol className="mt-2 list-decimal space-y-2 pl-5 text-xs leading-6 text-[#d6e0ff]">
+              <li>选择浏览器中的钱包插件</li>
+              <li>授权连接当前钱包地址</li>
+              <li>确认签名，系统会自动完成登录</li>
+            </ol>
+          </div>
 
-            <button type="submit" disabled={loading} className="btn-primary w-full justify-center disabled:opacity-55">
-              {loading ? "登录中..." : "登录"}
-            </button>
-          </form>
+          <div className="mt-5 flex justify-center">
+            <WalletConnectButton />
+          </div>
 
-          {message && <p className={`status-message ${messageType}`}>{message}</p>}
-
-          <p className="mt-4 text-center text-[11px] text-soft">
-            还没有账号？ <Link href="/auth/register" className="text-[#8fb3ff] hover:underline">立即注册</Link>
-          </p>
+          <div className="mt-5 flex flex-wrap justify-center gap-2 text-[11px] text-soft">
+            <Link href="/" className="text-[#8fb3ff] hover:underline">
+              返回首页
+            </Link>
+            <Link href="/nfts" className="text-[#8fb3ff] hover:underline">
+              浏览市场
+            </Link>
+          </div>
         </div>
       </div>
     </div>

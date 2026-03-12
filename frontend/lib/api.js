@@ -11,12 +11,7 @@ function unwrapError(error, fallback) {
   if (typeof data === "string" && data.trim()) {
     return data.trim();
   }
-  return (
-    data?.message ||
-    error?.message ||
-    fallback ||
-    "请求失败"
-  );
+  return data?.message || error?.message || fallback || "请求失败";
 }
 
 api.interceptors.request.use((config) => {
@@ -28,36 +23,6 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
-
-export async function register(email, password, username, avatar) {
-  try {
-    const res = await api.post("/auth/register", {
-      email,
-      password,
-      username,
-      avatar
-    });
-    return res.data;
-  } catch (error) {
-    throw new Error(unwrapError(error, "注册失败"));
-  }
-}
-
-export async function login(email, password) {
-  try {
-    const res = await api.post("/auth/login", { email, password });
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("jwt_token", res.data.token);
-      window.localStorage.setItem(
-        "current_user",
-        JSON.stringify(res.data.user || {})
-      );
-    }
-    return res.data;
-  } catch (error) {
-    throw new Error(unwrapError(error, "登录失败"));
-  }
-}
 
 export async function getNFTs(categoryOrOptions) {
   try {
@@ -206,10 +171,7 @@ export async function walletLogin(wallet, signature) {
     const res = await api.post("/auth/wallet/login", { wallet, signature });
     if (typeof window !== "undefined") {
       window.localStorage.setItem("jwt_token", res.data.token);
-      window.localStorage.setItem(
-        "current_user",
-        JSON.stringify(res.data.user || {})
-      );
+      window.localStorage.setItem("current_user", JSON.stringify(res.data.user || {}));
     }
     return res.data;
   } catch (error) {
@@ -239,4 +201,3 @@ export async function updateProfile(payload) {
     throw new Error(unwrapError(error, "更新资料失败"));
   }
 }
-

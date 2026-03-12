@@ -1,11 +1,11 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { createOrder, getNFTById, getNFTOrderHistory, updateNFTListing } from "@/lib/api";
 import { getNFTMedia } from "@/lib/media";
-import { buyNFTWithWallet, listNFTWithWallet } from "@/lib/web3";
+import { buyNFTWithWallet, delistNFTWithWallet, listNFTWithWallet } from "@/lib/web3";
 import TxProgressCard from "@/components/TxProgressCard";
 
 const TX_EXPLORER_BASE =
@@ -44,7 +44,7 @@ const formatTime = (value) => {
   ).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
-function hasBackendLogin() {
+function hasWalletLogin() {
   if (typeof window === "undefined") return false;
   const token = window.localStorage.getItem("jwt_token");
   return Boolean(token);
@@ -59,6 +59,11 @@ function readCurrentUser() {
   } catch {
     return null;
   }
+}
+
+function hasPositiveWei(value) {
+  const normalized = String(value ?? "").trim().replace(/^0+/, "");
+  return normalized !== "";
 }
 
 function PrimaryMedia({ nft }) {
@@ -117,7 +122,6 @@ function PrimaryMedia({ nft }) {
 
 export default function NFTDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const id = params?.id;
 
   const [nft, setNft] = useState(null);
@@ -129,6 +133,7 @@ export default function NFTDetailPage() {
   const [historyError, setHistoryError] = useState("");
   const [buying, setBuying] = useState(false);
   const [relisting, setRelisting] = useState(false);
+  const [delisting, setDelisting] = useState(false);
   const [listingPrice, setListingPrice] = useState("");
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("info");
@@ -193,8 +198,8 @@ export default function NFTDetailPage() {
     return Number(currentUser.id) === Number(nft.ownerId);
   }, [currentUser, nft]);
 
-  const canBuy = !isOwner && Number(nft?.price || 0) > 0;
-  const isListed = Number(nft?.price || 0) > 0;
+  const isListed = hasPositiveWei(nft?.priceWei);
+  const canBuy = !isOwner && isListed;
 
   const handleBuy = async () => {
     if (!nft) return;
@@ -205,10 +210,9 @@ export default function NFTDetailPage() {
       return;
     }
 
-    if (!hasBackendLogin()) {
+    if (!hasWalletLogin()) {
       setMessageType("error");
-      setMessage("请先登录平台账号后再购买");
-      setTimeout(() => router.push("/auth/login"), 600);
+      setMessage("请先连接钱包并完成登录后再购买");
       return;
     }
 
@@ -225,6 +229,7 @@ export default function NFTDetailPage() {
     try {
       const purchase = await buyNFTWithWallet({
         tokenId: nft.tokenId,
+        fallbackPriceWei: nft.priceWei || "0",
         fallbackPriceEth: Number(nft.price || 0),
         onStage: (stage, txHash) => {
           if (stage === "wallet") {
@@ -257,6 +262,7 @@ export default function NFTDetailPage() {
 
       const order = await createOrder({
         nftId: nft.id,
+        priceWei: purchase.priceWei,
         price: purchase.priceEth,
         txHash: purchase.txHash
       });
@@ -278,6 +284,7 @@ export default function NFTDetailPage() {
         return {
           ...prev,
           ownerId: currentUser?.id || prev.ownerId,
+          priceWei: "0",
           price: 0,
           priceUnit: "ETH"
         };
@@ -289,6 +296,7 @@ export default function NFTDetailPage() {
         {
           id: order.id,
           nftId: nft.id,
+          priceWei: order.priceWei,
           price: order.price,
           txHash: order.txHash,
           status: order.status,
@@ -309,9 +317,6 @@ export default function NFTDetailPage() {
         txHash: prev?.txHash || "",
         error: errMessage
       }));
-      if (errMessage.includes("未登录")) {
-        setTimeout(() => router.push("/auth/login"), 600);
-      }
     } finally {
       setBuying(false);
     }
@@ -324,10 +329,9 @@ export default function NFTDetailPage() {
       setMessage("该 NFT 尚未上链，无法上架");
       return;
     }
-    if (!hasBackendLogin()) {
+    if (!hasWalletLogin()) {
       setMessageType("error");
-      setMessage("请先登录平台账号后再上架");
-      setTimeout(() => router.push("/auth/login"), 600);
+      setMessage("请先连接钱包并完成登录后再上架");
       return;
     }
 
@@ -382,6 +386,7 @@ export default function NFTDetailPage() {
       }));
 
       const updated = await updateNFTListing(nft.id, {
+        priceWei: listed.priceWei,
         price: nextPrice,
         priceUnit: "ETH"
       });
@@ -409,6 +414,99 @@ export default function NFTDetailPage() {
       }));
     } finally {
       setRelisting(false);
+    }
+  };
+
+  const handleDelist = async () => {
+    if (!nft) return;
+    if (!nft.tokenId) {
+      setMessageType("error");
+      setMessage("该 NFT 尚未上链，无法下架");
+      return;
+    }
+    if (!hasWalletLogin()) {
+      setMessageType("error");
+      setMessage("请先连接钱包并完成登录后再下架");
+      return;
+    }
+    if (!isListed) {
+      setMessageType("error");
+      setMessage("该 NFT 当前未上架");
+      return;
+    }
+
+    setDelisting(true);
+    setMessage("");
+    setTradeProgress({
+      step: "wallet",
+      detail: "请在钱包中确认下架交易...",
+      txHash: "",
+      error: "",
+      flow: "delist"
+    });
+
+    try {
+      const delisted = await delistNFTWithWallet({
+        tokenId: nft.tokenId,
+        onStage: (stage, txHash) => {
+          if (stage === "wallet") {
+            setTradeProgress((prev) => ({
+              ...(prev || {}),
+              step: "wallet",
+              detail: "请在钱包中确认下架交易...",
+              txHash: prev?.txHash || "",
+              error: ""
+            }));
+          } else if (stage === "chain") {
+            setTradeProgress((prev) => ({
+              ...(prev || {}),
+              step: "chain",
+              detail: "交易已广播，等待链上打包确认...",
+              txHash: txHash || prev?.txHash || "",
+              error: ""
+            }));
+          }
+        }
+      });
+
+      setTradeProgress((prev) => ({
+        ...(prev || {}),
+        step: "sync",
+        detail: "链上确认完成，正在同步后台下架状态...",
+        txHash: delisted?.txHash || prev?.txHash || "",
+        error: ""
+      }));
+
+      const updated = await updateNFTListing(nft.id, {
+        priceWei: "0",
+        price: 0,
+        priceUnit: "ETH"
+      });
+
+      setNft(updated);
+      setListingPrice("");
+      setTradeProgress((prev) => ({
+        ...(prev || {}),
+        step: "done",
+        detail: "NFT 已下架",
+        txHash: delisted?.txHash || prev?.txHash || "",
+        error: ""
+      }));
+      setMessageType("success");
+      setMessage("NFT 已下架");
+    } catch (err) {
+      const errMessage = err.message || "下架失败，请稍后重试";
+      setMessageType("error");
+      setMessage(errMessage);
+      setTradeProgress((prev) => ({
+        ...(prev || {}),
+        step: prev?.step || "wallet",
+        detail: "下架流程已中断",
+        txHash: prev?.txHash || "",
+        error: errMessage
+      }));
+    } finally {
+      setDelisting(false);
     }
   };
 
@@ -487,18 +585,34 @@ export default function NFTDetailPage() {
                   <button
                     type="button"
                     onClick={handleRelist}
-                    disabled={relisting}
+                    disabled={relisting || delisting}
                     className="btn-primary shrink-0 px-4 disabled:opacity-55"
                   >
                     {relisting ? "提交中..." : isListed ? "更新价格" : "重新上架"}
                   </button>
+                  {isListed && (
+                    <button
+                      type="button"
+                      onClick={handleDelist}
+                      disabled={relisting || delisting}
+                      className="btn-outline shrink-0 px-4 disabled:opacity-55"
+                    >
+                      {delisting ? "下架中..." : "下架"}
+                    </button>
+                  )}
                 </div>
               </div>
             )}
 
             {tradeProgress && (
               <TxProgressCard
-                title={tradeProgress.flow === "list" ? "上架进度" : "购买进度"}
+                title={
+                  tradeProgress.flow === "list"
+                    ? "上架进度"
+                    : tradeProgress.flow === "delist"
+                      ? "下架进度"
+                      : "购买进度"
+                }
                 steps={["wallet", "chain", "sync", "done"]}
                 currentStep={tradeProgress.step}
                 detail={tradeProgress.detail}

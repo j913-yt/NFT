@@ -10,6 +10,13 @@ import (
 	"time"
 
 	"nft-backend/internal/service"
+	"nft-backend/internal/util"
+)
+
+const (
+	maxNFTMainBytes    = 100 << 20
+	maxNFTCoverBytes   = 20 << 20
+	maxNFTRequestBytes = 125 << 20
 )
 
 type IPFSHandler struct {
@@ -32,42 +39,45 @@ func isAllowedCategory(category string) bool {
 func validateCategoryMedia(category, mediaType string) error {
 	category = strings.ToLower(strings.TrimSpace(category))
 	if !isAllowedCategory(category) {
-		return errors.New("不支持的 NFT 类别")
+		return errors.New("不支持的 NFT 分类")
 	}
 
 	switch category {
 	case "music":
 		if mediaType != "audio" {
-			return errors.New("音乐类别只能上传音频文件")
+			return errors.New("音乐分类仅支持音频文件")
 		}
 	case "video":
 		if mediaType != "video" {
-			return errors.New("视频类别只能上传视频文件")
+			return errors.New("视频分类仅支持视频文件")
 		}
 	case "art":
 		if mediaType != "image" {
-			return errors.New("艺术类别只能上传图片文件")
+			return errors.New("艺术分类仅支持图片文件")
 		}
 	}
+
 	return nil
 }
 
 func (h *IPFSHandler) UploadNFT(w http.ResponseWriter, r *http.Request) {
 	if !h.svc.Enabled() {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{
-			"message": "IPFS 服务未配置，请在后端设置 Pinata 鉴权信息",
+			"message": "IPFS 服务未配置，请先配置 Pinata 鉴权信息",
 		})
 		return
 	}
 
-	if err := r.ParseMultipartForm(220 << 20); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "上传参数错误"})
+	r.Body = http.MaxBytesReader(w, r.Body, maxNFTRequestBytes)
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "上传参数错误或文件过大"})
 		return
 	}
 
 	name := strings.TrimSpace(r.FormValue("name"))
 	description := strings.TrimSpace(r.FormValue("description"))
 	category := strings.ToLower(strings.TrimSpace(r.FormValue("category")))
+
 	if name == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "NFT 名称不能为空"})
 		return
@@ -76,7 +86,7 @@ func (h *IPFSHandler) UploadNFT(w http.ResponseWriter, r *http.Request) {
 		category = "other"
 	}
 	if !isAllowedCategory(category) {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "不支持的 NFT 类别"})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "不支持的 NFT 分类"})
 		return
 	}
 
@@ -87,7 +97,7 @@ func (h *IPFSHandler) UploadNFT(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	if header.Size > 100<<20 {
+	if header.Size <= 0 || header.Size > maxNFTMainBytes {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "媒体文件大小不能超过 100MB"})
 		return
 	}
@@ -102,12 +112,11 @@ func (h *IPFSHandler) UploadNFT(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mimeType := strings.TrimSpace(header.Header.Get("Content-Type"))
-	if mimeType == "" {
-		mimeType = http.DetectContentType(content)
+	mimeType, mediaType, err := util.DetectAllowedNFTMedia(header.Header.Get("Content-Type"), content)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "媒体文件类型不在白名单内"})
+		return
 	}
-	mediaType := service.DetectMediaType(mimeType)
-
 	if err := validateCategoryMedia(category, mediaType); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": err.Error()})
 		return
@@ -129,7 +138,8 @@ func (h *IPFSHandler) UploadNFT(w http.ResponseWriter, r *http.Request) {
 		coverFile, coverHeader, coverErr := r.FormFile("cover")
 		if coverErr == nil {
 			defer coverFile.Close()
-			if coverHeader.Size > 20<<20 {
+
+			if coverHeader.Size <= 0 || coverHeader.Size > maxNFTCoverBytes {
 				writeJSON(w, http.StatusBadRequest, map[string]string{"message": "封面大小不能超过 20MB"})
 				return
 			}
@@ -144,12 +154,9 @@ func (h *IPFSHandler) UploadNFT(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			coverMime := strings.TrimSpace(coverHeader.Header.Get("Content-Type"))
-			if coverMime == "" {
-				coverMime = http.DetectContentType(coverBytes)
-			}
-			if !strings.HasPrefix(strings.ToLower(coverMime), "image/") {
-				writeJSON(w, http.StatusBadRequest, map[string]string{"message": "封面必须是图片格式"})
+			coverMime, err := util.DetectAllowedCoverImage(coverHeader.Header.Get("Content-Type"), coverBytes)
+			if err != nil {
+				writeJSON(w, http.StatusBadRequest, map[string]string{"message": "封面仅支持 JPG、PNG、GIF、WEBP"})
 				return
 			}
 

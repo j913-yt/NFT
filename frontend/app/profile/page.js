@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { getMyBoughtOrders, getMySoldOrders, getNFTs, updateProfile } from "@/lib/api";
+import { getMyBoughtOrders, getMySoldOrders, getNFTs, updateProfile, uploadAvatar } from "@/lib/api";
 import { getNFTMedia, resolveAssetUrl } from "@/lib/media";
 import MarketplaceCard from "@/components/MarketplaceCard";
 
@@ -131,6 +131,7 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [newName, setNewName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [loadingNfts, setLoadingNfts] = useState(false);
   const [loadingSold, setLoadingSold] = useState(false);
   const [loadingBought, setLoadingBought] = useState(false);
@@ -258,10 +259,25 @@ export default function ProfilePage() {
   const activeError =
     activeTab === "holding" ? listError : activeTab === "buy" ? boughtError : soldError;
 
+  const persistProfile = async ({ username = "", avatar = "" } = {}) => {
+    const payload = {};
+    if (username) payload.username = username;
+    if (avatar) payload.avatar = avatar;
+
+    const res = await updateProfile(payload);
+    const merged = { ...user, ...(res.user || {}) };
+    setUser(merged);
+    setNewName(merged.username || "");
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("current_user", JSON.stringify(merged));
+    }
+    return merged;
+  };
+
   if (!user) {
     return (
       <div className="glass-panel mx-auto w-full max-w-lg px-6 py-8 text-sm text-soft">
-        请先登录后查看个人中心。
+        请先连接钱包并完成登录后查看个人中心。
       </div>
     );
   }
@@ -279,8 +295,36 @@ export default function ProfilePage() {
           )}
 
           <h1 className="mt-4 text-2xl font-black text-white">{user.username}</h1>
-          <p className="mt-1 text-xs text-soft">{user.email || "未绑定邮箱"}</p>
+          <p className="mt-1 text-xs text-soft">登录方式: 钱包签名</p>
           {user.wallet && <p className="mt-2 break-all text-[11px] text-[#a6b6e8]">钱包地址: {user.wallet}</p>}
+
+          <div className="mt-4">
+            <label className="mb-1 block text-[11px] font-semibold text-[#d6e0ff]">更新头像</label>
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/gif,image/webp"
+              className="input-neo file:mr-2 file:rounded-lg file:border-0 file:bg-[#3f7bff66] file:px-2 file:py-1 file:text-xs file:text-white"
+              disabled={avatarUploading}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+
+                try {
+                  setAvatarUploading(true);
+                  const res = await uploadAvatar(file);
+                  await persistProfile({ avatar: res.url });
+                } catch (err) {
+                  alert(err.message || "头像上传失败");
+                } finally {
+                  setAvatarUploading(false);
+                  e.target.value = "";
+                }
+              }}
+            />
+            <p className="mt-1 text-[11px] text-soft">
+              {avatarUploading ? "头像上传中..." : "仅支持 JPG、PNG、GIF、WEBP，需登录后上传。"}
+            </p>
+          </div>
 
           <div className="mt-5">
             {editing ? (
@@ -296,12 +340,7 @@ export default function ProfilePage() {
                       if (!newName.trim()) return;
                       setSaving(true);
                       try {
-                        await updateProfile({ username: newName.trim() });
-                        const updated = { ...user, username: newName.trim() };
-                        setUser(updated);
-                        if (typeof window !== "undefined") {
-                          window.localStorage.setItem("current_user", JSON.stringify(updated));
-                        }
+                        await persistProfile({ username: newName.trim() });
                         setEditing(false);
                       } catch (err) {
                         alert(err.message || "更新失败");
