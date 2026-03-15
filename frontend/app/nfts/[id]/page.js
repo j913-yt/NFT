@@ -68,10 +68,12 @@ function hasPositiveWei(value) {
 
 function PrimaryMedia({ nft }) {
   const { mediaType, mediaUrl, coverUrl } = getNFTMedia(nft);
+  const mediaFrameClass =
+    "relative h-[360px] w-full overflow-hidden rounded-2xl border border-white/15 bg-[#0d1120] sm:h-[420px]";
 
   if (!mediaUrl) {
     return (
-      <div className="flex h-[360px] items-center justify-center rounded-2xl border border-white/15 bg-black/40 text-xs text-soft">
+      <div className={`${mediaFrameClass} flex items-center justify-center bg-black/40 text-xs text-soft`}>
         暂无媒体内容
       </div>
     );
@@ -84,19 +86,19 @@ function PrimaryMedia({ nft }) {
         poster={coverUrl || undefined}
         src={mediaUrl}
         preload="metadata"
-        className="h-[360px] w-full rounded-2xl border border-white/15 object-cover"
+        className={`${mediaFrameClass} object-contain bg-black/55`}
       />
     );
   }
 
   if (mediaType === "audio") {
     return (
-      <div className="relative h-[360px] overflow-hidden rounded-2xl border border-white/15 bg-[#0d1120]">
+      <div className={mediaFrameClass}>
         {(coverUrl || mediaUrl) && (
           <img
             src={coverUrl || mediaUrl}
             alt={`${nft.name || "音频"} 封面`}
-            className="absolute inset-0 h-full w-full object-cover"
+            className="absolute inset-0 h-full w-full object-contain opacity-90"
             loading="eager"
             decoding="async"
           />
@@ -111,9 +113,9 @@ function PrimaryMedia({ nft }) {
 
   return (
     <img
-      src={mediaUrl}
+      src={coverUrl || mediaUrl}
       alt={nft.name}
-      className="h-[360px] w-full rounded-2xl border border-white/15 object-cover"
+      className={`${mediaFrameClass} object-contain bg-[#0b1020]`}
       loading="eager"
       decoding="async"
     />
