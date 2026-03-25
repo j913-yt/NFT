@@ -146,6 +146,8 @@ export default function MarketplaceCard({
     }, 230);
   };
 
+  const contractText = nft?.contract ? String(nft.contract).slice(0, 14) : "NFT Collection";
+
   return (
     <Link
       ref={linkRef}
@@ -159,9 +161,7 @@ export default function MarketplaceCard({
         <CardMedia nft={nft} />
 
         <div className="market-card-top">
-          <span className="market-card-collection">
-            {nft?.contract ? String(nft.contract).slice(0, 14) : "NFT 合集"}
-          </span>
+          <span className="market-card-collection">{contractText}</span>
           <span className="market-card-badge">{category}</span>
         </div>
 
@@ -174,14 +174,14 @@ export default function MarketplaceCard({
               event.stopPropagation();
               onToggleFavorite?.(nft?.id);
             }}
-            aria-label={isFavorite ? "取消收藏" : "收藏"}
+            aria-label={isFavorite ? "取消收藏" : "加入收藏"}
           >
             {isFavorite ? "已收藏" : "收藏"}
           </button>
         )}
 
         <div className="market-card-bottom">
-          <p className="market-card-title">{nft?.name || "未命名"}</p>
+          <p className="market-card-title">{nft?.name || "未命名 NFT"}</p>
           <p className="market-card-desc">{nft?.description || "暂无描述"}</p>
         </div>
       </div>

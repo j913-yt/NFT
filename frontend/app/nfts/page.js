@@ -45,37 +45,38 @@ function Stats({ nfts }) {
     }, {});
 
     const top = Object.entries(byCategory).sort((a, b) => b[1] - a[1])[0];
+    const topCategory = top ? `${categoryLabelMap[top[0]] || "其他"} · ${top[1]} 件` : "暂无";
 
     return {
       listed: priced.length,
       total: nfts.length,
       floor,
       avg,
-      topCategory: top ? `${categoryLabelMap[top[0]] || "其他"}（${top[1]}）` : "暂无"
+      topCategory
     };
   }, [nfts]);
 
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-        <p className="text-[11px] text-[#97a2c8]">在售数量</p>
+      <div className="surface-panel">
+        <p className="text-[11px] text-[#9daad0]">在售数量</p>
         <p className="mt-1 text-xl font-black text-white">{stats.listed}</p>
       </div>
-      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-        <p className="text-[11px] text-[#97a2c8]">藏品总数</p>
+      <div className="surface-panel">
+        <p className="text-[11px] text-[#9daad0]">藏品总数</p>
         <p className="mt-1 text-xl font-black text-white">{stats.total}</p>
       </div>
-      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-        <p className="text-[11px] text-[#97a2c8]">地板价</p>
+      <div className="surface-panel">
+        <p className="text-[11px] text-[#9daad0]">地板价</p>
         <p className="mt-1 text-xl font-black text-white">{formatPrice(stats.floor, "ETH")}</p>
       </div>
-      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-        <p className="text-[11px] text-[#97a2c8]">平均价</p>
+      <div className="surface-panel">
+        <p className="text-[11px] text-[#9daad0]">平均价</p>
         <p className="mt-1 text-xl font-black text-white">{formatPrice(stats.avg, "ETH")}</p>
       </div>
-      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-        <p className="text-[11px] text-[#97a2c8]">热门类型</p>
-        <p className="mt-1 text-xl font-black text-white">{stats.topCategory}</p>
+      <div className="surface-panel">
+        <p className="text-[11px] text-[#9daad0]">热门分类</p>
+        <p className="mt-1 text-base font-black text-white">{stats.topCategory}</p>
       </div>
     </div>
   );
@@ -207,10 +208,13 @@ export default function NFTListPage() {
       <section className="glass-panel p-5 sm:p-6">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="badge mb-2">市场</p>
-            <h1 className="text-4xl font-black text-white sm:text-5xl">浏览 NFT</h1>
+            <p className="badge mb-2">Marketplace</p>
+            <h1 className="text-4xl font-black text-white sm:text-5xl">NFT 市场</h1>
+            <p className="mt-2 text-xs text-soft">通过筛选和排序快速定位目标藏品</p>
           </div>
-          <span className="text-xs text-soft">{loading ? "同步中..." : `${displayNfts.length} 件`}</span>
+          <span className="text-xs text-soft">
+            {loading ? "同步中..." : `当前结果 ${displayNfts.length} 件`}
+          </span>
         </div>
         <div className="neo-divider mb-4" />
         <Stats nfts={nfts} />
@@ -230,14 +234,14 @@ export default function NFTListPage() {
               setOnlyFav(false);
             }}
           >
-            重置
+            重置筛选
           </button>
         </div>
 
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
           <input
             className="input-neo xl:col-span-2"
-            placeholder="搜索名称 / 描述 / Token"
+            placeholder="搜索名称 / 描述 / Token ID"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -255,7 +259,7 @@ export default function NFTListPage() {
             type="number"
             min="0"
             step="0.00000001"
-            placeholder="最低价格（ETH）"
+            placeholder="最低价格 (ETH)"
             value={minPrice}
             onChange={(e) => setMinPrice(e.target.value)}
           />
@@ -265,7 +269,7 @@ export default function NFTListPage() {
             type="number"
             min="0"
             step="0.00000001"
-            placeholder="最高价格（ETH）"
+            placeholder="最高价格 (ETH)"
             value={maxPrice}
             onChange={(e) => setMaxPrice(e.target.value)}
           />
@@ -274,10 +278,11 @@ export default function NFTListPage() {
         <label className="mt-3 inline-flex items-center gap-2 text-xs text-soft">
           <input
             type="checkbox"
+            className="h-4 w-4 accent-[#5f8dff]"
             checked={onlyFav}
             onChange={(e) => setOnlyFav(e.target.checked)}
           />
-          仅看收藏
+          仅查看收藏
         </label>
       </section>
 
@@ -307,7 +312,7 @@ export default function NFTListPage() {
               </button>
             )}
             <Link href="/nfts/create" className="btn-primary px-4 py-2 text-xs">
-              创建 NFT
+              去创建 NFT
             </Link>
           </div>
         </div>
@@ -334,4 +339,3 @@ export default function NFTListPage() {
     </div>
   );
 }
-

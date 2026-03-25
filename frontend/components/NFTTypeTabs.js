@@ -62,9 +62,9 @@ export default function NFTTypeTabs({
 }) {
   return (
     <div
-      className={`type-tabs ${compact ? "type-tabs-compact" : ""}`}
+      className={`flex flex-wrap gap-2 sm:gap-3 ${compact ? "" : ""}`}
       role="tablist"
-      aria-label="NFT \u5206\u7c7b\u7b5b\u9009"
+      aria-label="NFT 分类筛选"
     >
       {items.map((item) => {
         const active = selected === item.id;
@@ -80,12 +80,32 @@ export default function NFTTypeTabs({
             role="tab"
             aria-selected={active}
             onClick={() => onChange?.(item.id)}
-            className={`type-tab ${active ? "active" : ""}`}
+            className={`group relative flex items-center gap-1.5 overflow-hidden rounded-full border transition-all duration-300 ${
+              compact ? "px-3.5 py-1.5 text-[11px]" : "px-4 py-2 text-xs sm:text-sm"
+            } font-bold ${
+              active
+                ? "border-blue-400/50 bg-blue-500/20 text-white shadow-[0_0_15px_rgba(95,141,255,0.25)]"
+                : "border-white/10 bg-white/5 text-[#a4b5d8] hover:border-white/30 hover:bg-white/10 hover:text-white"
+            }`}
           >
-            <span className="type-tab-icon" aria-hidden="true">
-              {iconNode}
+            {active && (
+              <div className="absolute inset-0 bg-gradient-to-r from-[#5f8dff]/20 to-[#37c8d0]/20 opacity-80" />
+            )}
+            <span
+              className={`relative z-10 flex items-center justify-center rounded-full transition-colors ${
+                compact ? "h-4 w-4" : "h-5 w-5"
+              } ${
+                active
+                  ? "bg-white/20 text-white"
+                  : "bg-white/10 text-[#a4b5d8] group-hover:bg-white/20 group-hover:text-white"
+              }`}
+              aria-hidden="true"
+            >
+              <div className={`[&>svg]:block ${compact ? "[&>svg]:h-2.5 [&>svg]:w-2.5" : "[&>svg]:h-3 [&>svg]:w-3"}`}>
+                {iconNode}
+              </div>
             </span>
-            <span>{item.label}</span>
+            <span className="relative z-10 drop-shadow-sm">{item.label}</span>
           </button>
         );
       })}

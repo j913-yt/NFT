@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -261,8 +261,8 @@ export default function WalletConnectButton() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 px-4 backdrop-blur-sm">
-          <div className="glass-panel w-full max-w-sm p-5 text-xs text-soft">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 px-4 backdrop-blur-sm overlay-fade-enter">
+          <div className="glass-panel w-full max-w-sm p-5 text-xs text-soft modal-popup-enter">
             <h2 className="mb-2 text-sm font-black text-white">钱包身份验证</h2>
             <p className="mb-3 leading-6">请在钱包中完成连接和签名，不会产生链上手续费。</p>
             <button
@@ -296,11 +296,11 @@ export default function WalletConnectButton() {
 
       {loggedIn && showAccountMenu && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-black/55 px-4 pt-24 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-start justify-center bg-black/55 px-4 pt-24 backdrop-blur-sm overlay-fade-enter"
           onClick={() => setShowAccountMenu(false)}
         >
           <div
-            className="glass-panel w-full max-w-md p-5 text-xs text-soft"
+            className="glass-panel w-full max-w-md p-5 text-xs text-soft modal-popup-enter"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="relative overflow-hidden rounded-2xl border border-white/15 bg-gradient-to-br from-[#1a2944] to-[#152136] p-4">
