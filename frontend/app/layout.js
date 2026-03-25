@@ -20,6 +20,11 @@ const WalletConnectButton = dynamic(
   { ssr: false }
 );
 
+const NotificationBell = dynamic(
+  () => import("../components/NotificationBell"),
+  { ssr: false }
+);
+
 export const metadata = {
   title: "Nova NFT Market",
   description: "支持钱包登录、IPFS 铸造与链上交易的 NFT 数字藏品平台"
@@ -81,6 +86,7 @@ export default function RootLayout({ children }) {
                   <Link href="/nfts/create" className="btn-outline px-3 py-1.5 text-xs">
                     立即发布
                   </Link>
+                  <NotificationBell />
                   <WalletConnectButton />
                 </div>
               </div>
