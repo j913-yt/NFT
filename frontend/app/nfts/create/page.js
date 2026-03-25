@@ -4,10 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createNFT, uploadNFTToIPFS } from "@/lib/api";
 import {
+  MAX_ROYALTY_BPS,
   convertPriceToEth,
   formatEth,
   mintNFTWithWallet,
-  NFT_CONTRACT_ADDRESS
+  normalizeRoyaltyBps,
+  NFT_CONTRACT_ADDRESS,
 } from "@/lib/web3";
 import TxProgressCard from "@/components/TxProgressCard";
 
@@ -18,17 +20,27 @@ const categoryOptions = [
   { value: "art", label: "艺术" },
   { value: "music", label: "音乐" },
   { value: "video", label: "视频" },
-  { value: "other", label: "其他" }
+  { value: "other", label: "其他" },
 ];
 
 const categoryLabelMap = {
   art: "艺术",
   music: "音乐",
   video: "视频",
-  other: "其他"
+  other: "其他",
 };
 
-const priceUnits = ["ETH", "WEI", "GWEI", "BNB", "MATIC", "USDT", "USDC", "USD", "CNY"];
+const priceUnits = [
+  "ETH",
+  "WEI",
+  "GWEI",
+  "BNB",
+  "MATIC",
+  "USDT",
+  "USDC",
+  "USD",
+  "CNY",
+];
 
 function detectMediaType(file) {
   const type = file?.type?.toLowerCase?.() || "";
@@ -47,9 +59,12 @@ function getAcceptByCategory(category) {
 
 function validateFileByCategory(category, file) {
   const mediaType = detectMediaType(file);
-  if (category === "music" && mediaType !== "audio") return "音乐分类仅支持音频文件";
-  if (category === "video" && mediaType !== "video") return "视频分类仅支持视频文件";
-  if (category === "art" && mediaType !== "image") return "艺术分类仅支持图片文件";
+  if (category === "music" && mediaType !== "audio")
+    return "音乐分类仅支持音频文件";
+  if (category === "video" && mediaType !== "video")
+    return "视频分类仅支持视频文件";
+  if (category === "art" && mediaType !== "image")
+    return "艺术分类仅支持图片文件";
   return "";
 }
 
@@ -81,6 +96,10 @@ function bytesToMb(size) {
   return `${(size / 1024 / 1024).toFixed(2)} MB`;
 }
 
+function isHexAddress(value) {
+  return /^0x[a-fA-F0-9]{40}$/.test(String(value || "").trim());
+}
+
 export default function CreateNFTPage() {
   const router = useRouter();
   const [form, setForm] = useState({
@@ -88,7 +107,9 @@ export default function CreateNFTPage() {
     description: "",
     price: "",
     priceUnit: "ETH",
-    category: "art"
+    category: "art",
+    royaltyFeeBps: "0",
+    royaltyReceiver: "",
   });
 
   const [wallet, setWallet] = useState("");
@@ -107,12 +128,36 @@ export default function CreateNFTPage() {
   const [modal, setModal] = useState(null);
   const [txProgress, setTxProgress] = useState(null);
 
-  const localMediaType = useMemo(() => detectMediaType(selectedFile), [selectedFile]);
-  const acceptTypes = useMemo(() => getAcceptByCategory(form.category), [form.category]);
+  const localMediaType = useMemo(
+    () => detectMediaType(selectedFile),
+    [selectedFile],
+  );
+  const acceptTypes = useMemo(
+    () => getAcceptByCategory(form.category),
+    [form.category],
+  );
 
   const convertedPriceEth = useMemo(() => {
     return convertPriceToEth(form.price, form.priceUnit);
   }, [form.price, form.priceUnit]);
+
+  const royaltyFeeBps = useMemo(
+    () => normalizeRoyaltyBps(form.royaltyFeeBps),
+    [form.royaltyFeeBps],
+  );
+  const royaltyEnabled = royaltyFeeBps > 0;
+  const royaltyPercent = useMemo(() => {
+    if (royaltyFeeBps <= 0) return "0";
+    return (royaltyFeeBps / 100).toFixed(2).replace(/\.?0+$/, "");
+  }, [royaltyFeeBps]);
+  const royaltyPreviewEth = useMemo(() => {
+    if (convertedPriceEth <= 0 || royaltyFeeBps <= 0) return 0;
+    return (convertedPriceEth * royaltyFeeBps) / 10000;
+  }, [convertedPriceEth, royaltyFeeBps]);
+  const sellerNetEth = useMemo(() => {
+    if (convertedPriceEth <= 0) return 0;
+    return Math.max(convertedPriceEth - royaltyPreviewEth, 0);
+  }, [convertedPriceEth, royaltyPreviewEth]);
 
   const hasPriceInput = Number(form.price || 0) > 0;
   const hasConversionIssue = hasPriceInput && convertedPriceEth <= 0;
@@ -123,8 +168,43 @@ export default function CreateNFTPage() {
   };
 
   useEffect(() => {
-    setWalletLoggedIn(hasWalletLogin());
-    const handleStorage = () => setWalletLoggedIn(hasWalletLogin());
+    const logged = hasWalletLogin();
+    setWalletLoggedIn(logged);
+    if (typeof window !== "undefined") {
+      const raw = window.localStorage.getItem("current_user");
+      if (raw) {
+        try {
+          const user = JSON.parse(raw);
+          if (user?.wallet) {
+            setForm((prev) =>
+              prev.royaltyReceiver
+                ? prev
+                : { ...prev, royaltyReceiver: user.wallet },
+            );
+          }
+        } catch {
+          // ignore invalid cache
+        }
+      }
+    }
+    const handleStorage = () => {
+      setWalletLoggedIn(hasWalletLogin());
+      if (typeof window === "undefined") return;
+      const raw = window.localStorage.getItem("current_user");
+      if (!raw) return;
+      try {
+        const user = JSON.parse(raw);
+        if (user?.wallet) {
+          setForm((prev) =>
+            prev.royaltyReceiver
+              ? prev
+              : { ...prev, royaltyReceiver: user.wallet },
+          );
+        }
+      } catch {
+        // ignore invalid cache
+      }
+    };
     if (typeof window !== "undefined") {
       window.addEventListener("storage", handleStorage);
     }
@@ -243,7 +323,28 @@ export default function CreateNFTPage() {
 
       const priceEth = convertPriceToEth(inputPrice, form.priceUnit);
       if (inputPrice > 0 && priceEth <= 0) {
-        throw new Error("当前汇率配置异常，无法换算到 ETH，请检查单位和环境变量");
+        throw new Error(
+          "当前汇率配置异常，无法换算到 ETH，请检查单位和环境变量",
+        );
+      }
+
+      const rawRoyaltyBps = Number(form.royaltyFeeBps || 0);
+      if (!Number.isFinite(rawRoyaltyBps) || rawRoyaltyBps < 0) {
+        throw new Error("版税比例格式不正确");
+      }
+
+      const normalizedRoyaltyBps = normalizeRoyaltyBps(rawRoyaltyBps);
+      if (rawRoyaltyBps > MAX_ROYALTY_BPS) {
+        throw new Error(`版税比例不能超过 ${MAX_ROYALTY_BPS / 100}%`);
+      }
+
+      const royaltyReceiverInput = form.royaltyReceiver.trim();
+      if (
+        normalizedRoyaltyBps > 0 &&
+        royaltyReceiverInput &&
+        !isHexAddress(royaltyReceiverInput)
+      ) {
+        throw new Error("版税接收地址格式错误");
       }
 
       setLoading(true);
@@ -254,7 +355,7 @@ export default function CreateNFTPage() {
         step: "ipfs",
         detail: "正在上传媒体与元数据到 IPFS...",
         txHash: "",
-        error: ""
+        error: "",
       });
 
       const ipfs = await uploadNFTToIPFS({
@@ -266,30 +367,49 @@ export default function CreateNFTPage() {
         onUploadProgress: (evt) => {
           const total = Number(evt?.total || 0);
           if (total <= 0) return;
-          const percent = Math.min(100, Math.max(0, Math.round((Number(evt.loaded || 0) / total) * 100)));
+          const percent = Math.min(
+            100,
+            Math.max(0, Math.round((Number(evt.loaded || 0) / total) * 100)),
+          );
           setUploadProgress(percent);
-        }
+        },
       });
 
       setUploadProgress(100);
       setTxProgress({
         step: "wallet",
-        detail: priceEth > 0 ? "IPFS 上传完成，请在钱包中确认铸造并上架交易..." : "IPFS 上传完成，请在钱包中确认铸造交易...",
+        detail:
+          priceEth > 0
+            ? "IPFS 上传完成，请在钱包中确认铸造并上架交易..."
+            : "IPFS 上传完成，请在钱包中确认铸造交易...",
         txHash: "",
-        error: ""
+        error: "",
       });
 
-      const { account, txHash, tokenId, listedPriceEth, listedPriceWei } = await mintNFTWithWallet({
+      const {
+        account,
+        txHash,
+        tokenId,
+        listedPriceEth,
+        listedPriceWei,
+        royaltyFeeBps: mintedRoyaltyFeeBps,
+        royaltyReceiver: mintedRoyaltyReceiver,
+      } = await mintNFTWithWallet({
         tokenURI: ipfs.metadataUri,
         priceEth,
+        royaltyFeeBps: normalizedRoyaltyBps,
+        royaltyReceiver: royaltyReceiverInput,
         onStage: (stage, hash) => {
           if (stage === "wallet") {
             setTxProgress((prev) => ({
               ...(prev || {}),
               step: "wallet",
-              detail: priceEth > 0 ? "等待钱包确认（铸造 + 上架）..." : "等待钱包确认（铸造）...",
+              detail:
+                priceEth > 0
+                  ? "等待钱包确认（铸造 + 上架）..."
+                  : "等待钱包确认（铸造）...",
               txHash: prev?.txHash || "",
-              error: ""
+              error: "",
             }));
           } else if (stage === "chain") {
             setTxProgress((prev) => ({
@@ -297,10 +417,10 @@ export default function CreateNFTPage() {
               step: "chain",
               detail: "交易已广播，正在等待链上打包确认...",
               txHash: hash || prev?.txHash || "",
-              error: ""
+              error: "",
             }));
           }
-        }
+        },
       });
 
       setWallet(account);
@@ -309,7 +429,7 @@ export default function CreateNFTPage() {
         step: "sync",
         detail: "链上确认完成，正在同步后台数据...",
         txHash: txHash || prev?.txHash || "",
-        error: ""
+        error: "",
       }));
 
       const finalPriceEth = listedPriceEth > 0 ? listedPriceEth : 0;
@@ -318,7 +438,8 @@ export default function CreateNFTPage() {
         tokenId: tokenId || "",
         name: form.name.trim(),
         description: form.description.trim(),
-        imageUrl: ipfs.imageUrl || (ipfs.mediaType === "image" ? ipfs.assetUrl : ""),
+        imageUrl:
+          ipfs.imageUrl || (ipfs.mediaType === "image" ? ipfs.assetUrl : ""),
         mediaUrl: ipfs.assetUrl,
         mediaType: ipfs.mediaType,
         mimeType: ipfs.mimeType,
@@ -328,7 +449,9 @@ export default function CreateNFTPage() {
         category: form.category,
         priceWei: listedPriceWei || "0",
         price: finalPriceEth,
-        priceUnit: "ETH"
+        priceUnit: "ETH",
+        royaltyFeeBps: mintedRoyaltyFeeBps || 0,
+        royaltyReceiver: mintedRoyaltyReceiver || "",
       };
 
       const nft = await createNFT(payload);
@@ -338,7 +461,7 @@ export default function CreateNFTPage() {
         step: "done",
         detail: `创建完成，NFT #${nft.id} 已写入市场`,
         txHash: txHash || prev?.txHash || "",
-        error: ""
+        error: "",
       }));
 
       setModal({
@@ -349,7 +472,9 @@ export default function CreateNFTPage() {
         name: nft.name,
         ethPrice: finalPriceEth,
         sourcePrice: inputPrice,
-        sourceUnit: form.priceUnit
+        sourceUnit: form.priceUnit,
+        royaltyFeeBps: mintedRoyaltyFeeBps || 0,
+        royaltyReceiver: mintedRoyaltyReceiver || "",
       });
       setMessage("");
     } catch (err) {
@@ -361,7 +486,7 @@ export default function CreateNFTPage() {
         step: prev?.step || "ipfs",
         detail: "创建流程已中断，可修正后重试",
         txHash: prev?.txHash || "",
-        error: errMessage
+        error: errMessage,
       }));
     } finally {
       setLoading(false);
@@ -392,7 +517,9 @@ export default function CreateNFTPage() {
 
         <form onSubmit={handleSubmit} className="space-y-3 text-sm">
           <div>
-            <label className="mb-1 block text-xs font-semibold text-[#d4deff]">NFT 名称</label>
+            <label className="mb-1 block text-xs font-semibold text-[#d4deff]">
+              NFT 名称
+            </label>
             <input
               className="input-neo"
               value={form.name}
@@ -403,7 +530,9 @@ export default function CreateNFTPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-semibold text-[#d4deff]">描述</label>
+            <label className="mb-1 block text-xs font-semibold text-[#d4deff]">
+              描述
+            </label>
             <textarea
               className="input-neo min-h-28"
               value={form.description}
@@ -414,20 +543,34 @@ export default function CreateNFTPage() {
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-xs font-semibold text-[#d4deff]">分类</label>
-              <select className="input-neo" value={form.category} onChange={handleChange("category")}>
+              <label className="mb-1 block text-xs font-semibold text-[#d4deff]">
+                分类
+              </label>
+              <select
+                className="input-neo"
+                value={form.category}
+                onChange={handleChange("category")}
+              >
                 {categoryOptions.map((item) => (
-                  <option key={item.value} value={item.value} style={{ color: "#0f1320", backgroundColor: "#f4f7ff" }}>
+                  <option
+                    key={item.value}
+                    value={item.value}
+                    style={{ color: "#0f1320", backgroundColor: "#f4f7ff" }}
+                  >
                     {item.label}
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-[11px] text-dim">{getCategoryUploadTip(form.category)}</p>
+              <p className="mt-1 text-[11px] text-dim">
+                {getCategoryUploadTip(form.category)}
+              </p>
             </div>
 
             <div className="grid grid-cols-[1fr_120px] gap-2">
               <div>
-                <label className="mb-1 block text-xs font-semibold text-[#d4deff]">价格</label>
+                <label className="mb-1 block text-xs font-semibold text-[#d4deff]">
+                  价格
+                </label>
                 <input
                   type="number"
                   step="0.0001"
@@ -438,10 +581,20 @@ export default function CreateNFTPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-[#d4deff]">单位</label>
-                <select className="input-neo" value={form.priceUnit} onChange={handleChange("priceUnit")}>
+                <label className="mb-1 block text-xs font-semibold text-[#d4deff]">
+                  单位
+                </label>
+                <select
+                  className="input-neo"
+                  value={form.priceUnit}
+                  onChange={handleChange("priceUnit")}
+                >
                   {priceUnits.map((unit) => (
-                    <option key={unit} value={unit} style={{ color: "#0f1320", backgroundColor: "#f4f7ff" }}>
+                    <option
+                      key={unit}
+                      value={unit}
+                      style={{ color: "#0f1320", backgroundColor: "#f4f7ff" }}
+                    >
                       {unit}
                     </option>
                   ))}
@@ -450,15 +603,80 @@ export default function CreateNFTPage() {
             </div>
           </div>
 
+          <div className="rounded-2xl border border-[#7ea3ff3d] bg-[linear-gradient(130deg,rgba(79,120,255,0.14),rgba(22,30,52,0.86))] p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-black text-white">
+                  EIP-2981 版税设置
+                </p>
+                <p className="mt-1 text-[11px] text-[#b5c7f1]">
+                  建议 200 ~ 800（即 2% ~ 8%）
+                </p>
+              </div>
+              <span className="rounded-full border border-white/15 bg-white/10 px-2 py-1 text-[11px] font-semibold text-[#d8e4ff]">
+                上限 {MAX_ROYALTY_BPS / 100}%
+              </span>
+            </div>
+
+            <div className="mt-3 grid gap-2 sm:grid-cols-[140px_1fr]">
+              <div>
+                <label className="mb-1 block text-[11px] font-semibold text-[#d4deff]">
+                  版税基点(BPS)
+                </label>
+                <input
+                  className="input-neo"
+                  type="number"
+                  min="0"
+                  max={MAX_ROYALTY_BPS}
+                  step="1"
+                  value={form.royaltyFeeBps}
+                  onChange={handleChange("royaltyFeeBps")}
+                  placeholder="0"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-[11px] font-semibold text-[#d4deff]">
+                  版税接收地址（留空默认当前钱包）
+                </label>
+                <input
+                  className="input-neo"
+                  value={form.royaltyReceiver}
+                  onChange={handleChange("royaltyReceiver")}
+                  placeholder="0x..."
+                />
+              </div>
+            </div>
+
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-[#c7d7ff]">
+              <span className="mini-chip">当前比例 {royaltyPercent}%</span>
+              <span className="mini-chip">
+                {royaltyEnabled ? "已启用版税" : "未启用版税"}
+              </span>
+              {royaltyEnabled && (
+                <span className="mini-chip">
+                  接收地址{" "}
+                  {form.royaltyReceiver?.trim() ? "自定义" : "默认创作者钱包"}
+                </span>
+              )}
+            </div>
+          </div>
+
           <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[11px] text-[#c9d6ff]">
             {!hasPriceInput && (
               <p>
-                换算后上架价: <span className="font-bold text-white">0 ETH（仅铸造不上架）</span>
+                换算后上架价:{" "}
+                <span className="font-bold text-white">
+                  0 ETH（仅铸造不上架）
+                </span>
               </p>
             )}
             {hasPriceInput && !hasConversionIssue && (
               <p>
-                换算后上架价: <span className="font-bold text-white">{formatEth(convertedPriceEth)} ETH</span>
+                换算后上架价:{" "}
+                <span className="font-bold text-white">
+                  {formatEth(convertedPriceEth)} ETH
+                </span>
               </p>
             )}
             {hasPriceInput && hasConversionIssue && (
@@ -466,28 +684,68 @@ export default function CreateNFTPage() {
                 当前汇率配置异常，暂无法换算到 ETH，请检查环境变量。
               </p>
             )}
+            {hasPriceInput && !hasConversionIssue && (
+              <div className="mt-1 grid gap-1 text-[11px] text-[#b8c8ee]">
+                <p>
+                  版税预估:{" "}
+                  <span className="font-semibold text-white">
+                    {royaltyEnabled
+                      ? `${formatEth(royaltyPreviewEth)} ETH (${royaltyPercent}%)`
+                      : "0 ETH"}
+                  </span>
+                </p>
+                <p>
+                  卖家实收预估:{" "}
+                  <span className="font-semibold text-white">
+                    {formatEth(sellerNetEth)} ETH
+                  </span>
+                </p>
+              </div>
+            )}
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-semibold text-[#d4deff]">媒体文件</label>
+            <label className="mb-1 block text-xs font-semibold text-[#d4deff]">
+              媒体文件
+            </label>
             <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5 px-4 py-6 text-center">
-              <span className="text-sm font-semibold text-white">上传主文件</span>
-              <span className="mt-1 text-[11px] text-dim">{getCategoryUploadTip(form.category)}，限制 {MAX_MAIN_FILE_MB}MB</span>
-              <input type="file" accept={acceptTypes} className="hidden" onChange={handleFileChange} />
+              <span className="text-sm font-semibold text-white">
+                上传主文件
+              </span>
+              <span className="mt-1 text-[11px] text-dim">
+                {getCategoryUploadTip(form.category)}，限制 {MAX_MAIN_FILE_MB}MB
+              </span>
+              <input
+                type="file"
+                accept={acceptTypes}
+                className="hidden"
+                onChange={handleFileChange}
+              />
             </label>
           </div>
 
           {(localMediaType === "audio" || localMediaType === "video") && (
             <div>
-              <label className="mb-1 block text-xs font-semibold text-[#d4deff]">封面图（可选）</label>
+              <label className="mb-1 block text-xs font-semibold text-[#d4deff]">
+                封面图（可选）
+              </label>
               <label className="flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5 px-3 py-3 text-xs text-soft">
                 上传封面（图片/GIF，最大 {MAX_COVER_FILE_MB}MB）
-                <input type="file" accept="image/*,.gif" className="hidden" onChange={handleCoverChange} />
+                <input
+                  type="file"
+                  accept="image/*,.gif"
+                  className="hidden"
+                  onChange={handleCoverChange}
+                />
               </label>
             </div>
           )}
 
-          <button type="submit" disabled={loading} className="btn-primary w-full justify-center disabled:opacity-55">
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-primary w-full justify-center disabled:opacity-55"
+          >
             {loading ? "处理中，请在钱包确认..." : "上传到 IPFS 并铸造"}
           </button>
 
@@ -517,9 +775,16 @@ export default function CreateNFTPage() {
           )}
         </form>
 
-        {wallet && <p className="mt-3 break-all text-xs text-[#9eb0e5]">钱包: {wallet}</p>}
+        {wallet && (
+          <p className="mt-3 break-all text-xs text-[#9eb0e5]">
+            钱包: {wallet}
+          </p>
+        )}
         {message && (
-          <p className={`status-message ${messageType || "info"}`} aria-live="polite">
+          <p
+            className={`status-message ${messageType || "info"}`}
+            aria-live="polite"
+          >
             {message}
           </p>
         )}
@@ -539,16 +804,24 @@ export default function CreateNFTPage() {
       <section className="glass-panel hero-glow relative overflow-hidden p-5 sm:p-6">
         <div className="relative z-10 mb-3 flex items-center justify-between">
           <h2 className="text-lg font-black text-white">实时预览</h2>
-          <span className="badge">{categoryLabelMap[form.category] || "其他"}</span>
+          <span className="badge">
+            {categoryLabelMap[form.category] || "其他"}
+          </span>
         </div>
 
         {!selectedFile && (
           <div className="flex h-[420px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-white/20 bg-[#0b1020] text-xs text-soft">
             <p>选择媒体文件后可查看预览效果</p>
             <div className="flex flex-wrap justify-center gap-2">
-              <span className="rounded-full border border-white/15 px-2 py-1 text-[11px]">图片/GIF</span>
-              <span className="rounded-full border border-white/15 px-2 py-1 text-[11px]">音频</span>
-              <span className="rounded-full border border-white/15 px-2 py-1 text-[11px]">视频</span>
+              <span className="rounded-full border border-white/15 px-2 py-1 text-[11px]">
+                图片/GIF
+              </span>
+              <span className="rounded-full border border-white/15 px-2 py-1 text-[11px]">
+                音频
+              </span>
+              <span className="rounded-full border border-white/15 px-2 py-1 text-[11px]">
+                视频
+              </span>
             </div>
           </div>
         )}
@@ -557,15 +830,25 @@ export default function CreateNFTPage() {
           <div className="space-y-3">
             <div className="relative overflow-hidden rounded-2xl border border-white/15 bg-black/40">
               {localMediaType === "image" && (
-                <img src={localPreview} alt="preview" className="h-[420px] w-full object-cover" />
+                <img
+                  src={localPreview}
+                  alt="preview"
+                  className="h-[420px] w-full object-cover"
+                />
               )}
 
               {localMediaType === "audio" && (
                 <div className="relative h-[420px]">
                   {coverPreview ? (
-                    <img src={coverPreview} alt="cover" className="absolute inset-0 h-full w-full object-cover" />
+                    <img
+                      src={coverPreview}
+                      alt="cover"
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
                   ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-xs text-soft">未上传封面</div>
+                    <div className="absolute inset-0 flex items-center justify-center text-xs text-soft">
+                      未上传封面
+                    </div>
                   )}
                   <div className="absolute inset-0 bg-black/45" />
                   <div className="absolute inset-x-4 bottom-4 rounded-xl bg-black/50 p-2 backdrop-blur-sm">
@@ -575,17 +858,45 @@ export default function CreateNFTPage() {
               )}
 
               {localMediaType === "video" && (
-                <video controls poster={coverPreview || undefined} src={localPreview} className="h-[420px] w-full object-cover" />
+                <video
+                  controls
+                  poster={coverPreview || undefined}
+                  src={localPreview}
+                  className="h-[420px] w-full object-cover"
+                />
               )}
             </div>
 
             <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-xs text-soft">
               <p>
-                名称: <span className="font-semibold text-white">{form.name || "未命名"}</span>
+                名称:{" "}
+                <span className="font-semibold text-white">
+                  {form.name || "未命名"}
+                </span>
               </p>
               <p className="mt-1">文件: {selectedFile.name}</p>
-              <p className="mt-1">输入价格: {form.price || 0} {form.priceUnit}</p>
-              <p className="mt-1">链上价格: {hasConversionIssue ? "换算失败" : `${formatEth(convertedPriceEth)} ETH`}</p>
+              <p className="mt-1">
+                输入价格: {form.price || 0} {form.priceUnit}
+              </p>
+              <p className="mt-1">
+                链上价格:{" "}
+                {hasConversionIssue
+                  ? "换算失败"
+                  : `${formatEth(convertedPriceEth)} ETH`}
+              </p>
+              <p className="mt-1">
+                版税比例: {royaltyPercent}% ({royaltyFeeBps} bps)
+              </p>
+              <p className="mt-1">
+                版税预估:{" "}
+                {hasConversionIssue
+                  ? "-"
+                  : `${formatEth(royaltyPreviewEth)} ETH`}
+              </p>
+              <p className="mt-1">
+                卖家实收预估:{" "}
+                {hasConversionIssue ? "-" : `${formatEth(sellerNetEth)} ETH`}
+              </p>
               <p className="mt-1">大小: {bytesToMb(selectedFile.size)}</p>
             </div>
           </div>
@@ -597,13 +908,20 @@ export default function CreateNFTPage() {
           <div className="glass-panel w-full max-w-md p-5">
             <h3 className="text-lg font-black text-white">请先完成钱包登录</h3>
             <p className="mt-2 text-xs leading-6 text-soft">
-              创建 NFT 需要先完成钱包签名登录。请点击顶部“连接钱包”，完成后继续创建。
+              创建 NFT
+              需要先完成钱包签名登录。请点击顶部“连接钱包”，完成后继续创建。
             </p>
             <div className="mt-4 flex justify-end gap-2">
-              <button className="btn-outline px-3 py-1.5 text-xs" onClick={() => setShowLoginModal(false)}>
+              <button
+                className="btn-outline px-3 py-1.5 text-xs"
+                onClick={() => setShowLoginModal(false)}
+              >
                 关闭
               </button>
-              <button className="btn-outline px-3 py-1.5 text-xs" onClick={() => router.push("/profile")}>
+              <button
+                className="btn-outline px-3 py-1.5 text-xs"
+                onClick={() => router.push("/profile")}
+              >
                 去登录
               </button>
               <button
@@ -634,13 +952,26 @@ export default function CreateNFTPage() {
               <p>名称: {modal.name}</p>
               <p>ID: {modal.id}</p>
               <p>链上编号: {modal.tokenId || "待确认"}</p>
-              <p>输入价格: {modal.sourcePrice || 0} {modal.sourceUnit}</p>
+              <p>
+                输入价格: {modal.sourcePrice || 0} {modal.sourceUnit}
+              </p>
               <p>链上价格: {formatEth(modal.ethPrice)} ETH</p>
+              <p>
+                版税比例:{" "}
+                {(Number(modal.royaltyFeeBps || 0) / 100)
+                  .toFixed(2)
+                  .replace(/\.?0+$/, "")}
+                %
+              </p>
+              <p>版税接收: {modal.royaltyReceiver || "未启用"}</p>
               <p className="break-all">元数据 URI: {modal.metadataUri}</p>
               <p className="break-all">交易哈希: {modal.txHash}</p>
             </div>
             <div className="mt-4 flex justify-end gap-2">
-              <button className="btn-outline px-3 py-1.5 text-xs" onClick={() => setModal(null)}>
+              <button
+                className="btn-outline px-3 py-1.5 text-xs"
+                onClick={() => setModal(null)}
+              >
                 继续
               </button>
               <button
@@ -652,14 +983,16 @@ export default function CreateNFTPage() {
               >
                 关闭进度
               </button>
-              <button className="btn-primary px-3 py-1.5 text-xs" onClick={() => router.push("/nfts")}>
+              <button
+                className="btn-primary px-3 py-1.5 text-xs"
+                onClick={() => router.push("/nfts")}
+              >
                 查看市场
               </button>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }

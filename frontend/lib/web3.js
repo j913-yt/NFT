@@ -4,18 +4,25 @@ export const NFT_CONTRACT_ADDRESS =
   process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS ||
   "0xYourDeployedContractAddress";
 
+export const MAX_ROYALTY_BPS = 2500;
+
 export const NFT_CONTRACT_ABI = [
   "function safeMint(address to, string uri) external returns (uint256)",
+  "function safeMint(address to, string uri, address royaltyReceiver, uint96 royaltyFeeBps) external returns (uint256)",
   "function mintAndList(string uri, uint256 priceWei) external returns (uint256)",
+  "function mintAndList(string uri, uint256 priceWei, address royaltyReceiver, uint96 royaltyFeeBps) external returns (uint256)",
   "function totalMinted() external view returns (uint256)",
   "function listToken(uint256 tokenId, uint256 priceWei) external",
   "function cancelListing(uint256 tokenId) external",
   "function buy(uint256 tokenId) external payable",
   "function getListing(uint256 tokenId) external view returns (address seller, uint256 priceWei, bool active)",
+  "function getRoyaltyInfo(uint256 tokenId, uint256 salePriceWei) external view returns (address receiver, uint256 royaltyAmount, uint96 royaltyFeeBps)",
+  "function royaltyInfo(uint256 tokenId, uint256 salePriceWei) external view returns (address receiver, uint256 royaltyAmount)",
   "event Minted(address indexed to, uint256 indexed tokenId, string tokenURI)",
   "event Listed(uint256 indexed tokenId, address indexed seller, uint256 priceWei)",
   "event Delisted(uint256 indexed tokenId, address indexed seller)",
-  "event Purchased(uint256 indexed tokenId, address indexed seller, address indexed buyer, uint256 priceWei)"
+  "event RoyaltySet(uint256 indexed tokenId, address indexed receiver, uint96 royaltyFeeBps)",
+  "event Purchased(uint256 indexed tokenId, address indexed seller, address indexed buyer, uint256 priceWei, address royaltyReceiver, uint256 royaltyAmountWei, uint256 sellerAmountWei)",
 ];
 
 const ETH_PRICE_USD = Number(process.env.NEXT_PUBLIC_ETH_PRICE_USD || "3000");
@@ -26,6 +33,18 @@ const MATIC_TO_ETH = Number(process.env.NEXT_PUBLIC_MATIC_TO_ETH || "0.0002");
 function safeNumber(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
+}
+
+function toSafeInt(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.trunc(n);
+}
+
+export function normalizeRoyaltyBps(value) {
+  const n = toSafeInt(value);
+  if (n <= 0) return 0;
+  return Math.min(n, MAX_ROYALTY_BPS);
 }
 
 export function convertPriceToEth(value, unit = "ETH") {
@@ -75,7 +94,9 @@ function toEthWei(value) {
 
 function assertContractAddress() {
   if (!ethers.isAddress(NFT_CONTRACT_ADDRESS)) {
-    throw new Error("合约地址无效：请在 frontend/.env.local 设置 NEXT_PUBLIC_NFT_CONTRACT_ADDRESS");
+    throw new Error(
+      "合约地址无效：请在 frontend/.env.local 设置 NEXT_PUBLIC_NFT_CONTRACT_ADDRESS",
+    );
   }
 }
 
@@ -96,7 +117,8 @@ function parseMintedTokenId(contract, receipt) {
 function isMissingCallException(err) {
   return (
     err?.code === "CALL_EXCEPTION" &&
-    (err?.data == null || String(err?.shortMessage || "").includes("missing revert data"))
+    (err?.data == null ||
+      String(err?.shortMessage || "").includes("missing revert data"))
   );
 }
 
@@ -111,16 +133,45 @@ async function readListingCompat(contract, tokenId) {
   }
 
   const variants = [
-    { fn: "listings", abi: ["function listings(uint256 tokenId) view returns (address seller, uint256 priceWei, bool active)"] },
-    { fn: "tokenListings", abi: ["function tokenListings(uint256 tokenId) view returns (address seller, uint256 priceWei, bool active)"] },
-    { fn: "listingOf", abi: ["function listingOf(uint256 tokenId) view returns (address seller, uint256 priceWei, bool active)"] },
-    { fn: "orders", abi: ["function orders(uint256 tokenId) view returns (address seller, uint256 priceWei, bool active)"] },
-    { fn: "getOrder", abi: ["function getOrder(uint256 tokenId) view returns (address seller, uint256 priceWei, bool active)"] }
+    {
+      fn: "listings",
+      abi: [
+        "function listings(uint256 tokenId) view returns (address seller, uint256 priceWei, bool active)",
+      ],
+    },
+    {
+      fn: "tokenListings",
+      abi: [
+        "function tokenListings(uint256 tokenId) view returns (address seller, uint256 priceWei, bool active)",
+      ],
+    },
+    {
+      fn: "listingOf",
+      abi: [
+        "function listingOf(uint256 tokenId) view returns (address seller, uint256 priceWei, bool active)",
+      ],
+    },
+    {
+      fn: "orders",
+      abi: [
+        "function orders(uint256 tokenId) view returns (address seller, uint256 priceWei, bool active)",
+      ],
+    },
+    {
+      fn: "getOrder",
+      abi: [
+        "function getOrder(uint256 tokenId) view returns (address seller, uint256 priceWei, bool active)",
+      ],
+    },
   ];
 
   for (const v of variants) {
     try {
-      const c = new ethers.Contract(NFT_CONTRACT_ADDRESS, v.abi, contract.runner);
+      const c = new ethers.Contract(
+        NFT_CONTRACT_ADDRESS,
+        v.abi,
+        contract.runner,
+      );
       const [seller, priceWei, active] = await c[v.fn](tokenId);
       return { seller, priceWei, active: Boolean(active), source: v.fn };
     } catch {
@@ -210,10 +261,95 @@ export async function getProviderAndSigner(preferredId) {
   return { provider, signer, account: accounts[0] };
 }
 
+function getReadOnlyProvider() {
+  const rpcUrl =
+    process.env.NEXT_PUBLIC_RPC_URL ||
+    process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL ||
+    "";
+  if (rpcUrl) {
+    return new ethers.JsonRpcProvider(rpcUrl);
+  }
+
+  if (typeof window !== "undefined" && window.ethereum) {
+    return new ethers.BrowserProvider(window.ethereum);
+  }
+
+  throw new Error("无法读取链上版税信息：请配置 NEXT_PUBLIC_RPC_URL");
+}
+
+export async function getRoyaltyInfoOnChain({
+  tokenId,
+  salePriceWei = "",
+  salePriceEth = 0,
+}) {
+  if (!tokenId) {
+    throw new Error("链上编号无效，无法查询版税");
+  }
+
+  assertContractAddress();
+  const provider = getReadOnlyProvider();
+  const contract = new ethers.Contract(
+    NFT_CONTRACT_ADDRESS,
+    NFT_CONTRACT_ABI,
+    provider,
+  );
+
+  let saleWei = 0n;
+  const rawWei = String(salePriceWei || "").trim();
+  if (rawWei) {
+    try {
+      saleWei = BigInt(rawWei);
+    } catch {
+      saleWei = 0n;
+    }
+  }
+  if (saleWei <= 0n) {
+    const saleEth = safeNumber(salePriceEth);
+    saleWei = saleEth > 0 ? toEthWei(saleEth) : 10n ** 18n;
+  }
+
+  let receiver = ethers.ZeroAddress;
+  let royaltyAmount = 0n;
+  let feeBps = 0;
+
+  try {
+    const [onChainReceiver, onChainRoyalty, onChainFeeBps] =
+      await contract.getRoyaltyInfo(tokenId, saleWei);
+    receiver = onChainReceiver;
+    royaltyAmount = onChainRoyalty;
+    feeBps = Number(onChainFeeBps);
+  } catch {
+    const [onChainReceiver, onChainRoyalty] = await contract.royaltyInfo(
+      tokenId,
+      saleWei,
+    );
+    receiver = onChainReceiver;
+    royaltyAmount = onChainRoyalty;
+    feeBps = saleWei > 0n ? Number((royaltyAmount * 10_000n) / saleWei) : 0;
+  }
+
+  const saleEthValue = Number(ethers.formatEther(saleWei));
+  const royaltyEthValue = Number(ethers.formatEther(royaltyAmount));
+
+  return {
+    receiver,
+    royaltyWei: royaltyAmount.toString(),
+    royaltyEth: royaltyEthValue,
+    feeBps,
+    salePriceWei: saleWei.toString(),
+    salePriceEth: saleEthValue,
+    sellerReceiveEth: Math.max(saleEthValue - royaltyEthValue, 0),
+  };
+}
+
 export async function getOnChainListing(tokenId, walletId) {
   assertContractAddress();
   const { signer } = await getProviderAndSigner(walletId);
-  const contract = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_CONTRACT_ABI, signer);
+  const contract = new ethers.Contract(
+    NFT_CONTRACT_ADDRESS,
+    NFT_CONTRACT_ABI,
+    signer,
+  );
 
   const listing = await readListingCompat(contract, tokenId);
   if (!listing) {
@@ -225,25 +361,76 @@ export async function getOnChainListing(tokenId, walletId) {
     priceWei: listing.priceWei.toString(),
     priceEth: Number(ethers.formatEther(listing.priceWei)),
     active: Boolean(listing.active),
-    source: listing.source
+    source: listing.source,
   };
 }
 
-export async function mintNFTWithWallet({ tokenURI, walletId, priceEth = 0, onStage }) {
+export async function mintNFTWithWallet({
+  tokenURI,
+  walletId,
+  priceEth = 0,
+  royaltyReceiver = "",
+  royaltyFeeBps = 0,
+  onStage,
+}) {
   assertContractAddress();
   const { signer, account } = await getProviderAndSigner(walletId);
-  const contract = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_CONTRACT_ABI, signer);
+  const contract = new ethers.Contract(
+    NFT_CONTRACT_ADDRESS,
+    NFT_CONTRACT_ABI,
+    signer,
+  );
 
   const normalizedPriceEth = safeNumber(priceEth);
+  const normalizedRoyaltyBps = normalizeRoyaltyBps(royaltyFeeBps);
+  const normalizedRoyaltyReceiver =
+    normalizedRoyaltyBps > 0
+      ? royaltyReceiver && ethers.isAddress(royaltyReceiver)
+        ? royaltyReceiver
+        : account
+      : ethers.ZeroAddress;
   let tx;
   let listedPriceWei = 0n;
 
   onStage?.("wallet");
   if (normalizedPriceEth > 0) {
     listedPriceWei = toEthWei(normalizedPriceEth);
-    tx = await contract.mintAndList(tokenURI, listedPriceWei);
+    try {
+      tx = await contract["mintAndList(string,uint256,address,uint96)"](
+        tokenURI,
+        listedPriceWei,
+        normalizedRoyaltyReceiver,
+        normalizedRoyaltyBps,
+      );
+    } catch (err) {
+      if (normalizedRoyaltyBps > 0 && isMissingCallException(err)) {
+        throw new Error("当前合约不支持 EIP-2981 版税，请部署新版合约后再创建");
+      }
+      if (normalizedRoyaltyBps > 0 || !isMissingCallException(err)) {
+        throw err;
+      }
+      tx = await contract["mintAndList(string,uint256)"](
+        tokenURI,
+        listedPriceWei,
+      );
+    }
   } else {
-    tx = await contract.safeMint(account, tokenURI);
+    try {
+      tx = await contract["safeMint(address,string,address,uint96)"](
+        account,
+        tokenURI,
+        normalizedRoyaltyReceiver,
+        normalizedRoyaltyBps,
+      );
+    } catch (err) {
+      if (normalizedRoyaltyBps > 0 && isMissingCallException(err)) {
+        throw new Error("当前合约不支持 EIP-2981 版税，请部署新版合约后再创建");
+      }
+      if (normalizedRoyaltyBps > 0 || !isMissingCallException(err)) {
+        throw err;
+      }
+      tx = await contract["safeMint(address,string)"](account, tokenURI);
+    }
   }
 
   onStage?.("chain", tx.hash);
@@ -262,11 +449,20 @@ export async function mintNFTWithWallet({ tokenURI, walletId, priceEth = 0, onSt
     tokenId,
     listed: normalizedPriceEth > 0,
     listedPriceWei: listedPriceWei.toString(),
-    listedPriceEth: normalizedPriceEth > 0 ? Number(ethers.formatEther(listedPriceWei)) : 0
+    listedPriceEth:
+      normalizedPriceEth > 0 ? Number(ethers.formatEther(listedPriceWei)) : 0,
+    royaltyFeeBps: normalizedRoyaltyBps,
+    royaltyReceiver:
+      normalizedRoyaltyBps > 0 ? normalizedRoyaltyReceiver.toLowerCase() : "",
   };
 }
 
-export async function listNFTWithWallet({ tokenId, priceEth, walletId, onStage }) {
+export async function listNFTWithWallet({
+  tokenId,
+  priceEth,
+  walletId,
+  onStage,
+}) {
   if (!tokenId) {
     throw new Error("链上编号无效，无法上架");
   }
@@ -277,7 +473,11 @@ export async function listNFTWithWallet({ tokenId, priceEth, walletId, onStage }
 
   assertContractAddress();
   const { signer, account } = await getProviderAndSigner(walletId);
-  const contract = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_CONTRACT_ABI, signer);
+  const contract = new ethers.Contract(
+    NFT_CONTRACT_ADDRESS,
+    NFT_CONTRACT_ABI,
+    signer,
+  );
 
   const priceWei = toEthWei(normalizedPrice);
   onStage?.("wallet");
@@ -290,7 +490,7 @@ export async function listNFTWithWallet({ tokenId, priceEth, walletId, onStage }
     account,
     txHash: receipt.hash,
     priceWei: priceWei.toString(),
-    priceEth: Number(ethers.formatEther(priceWei))
+    priceEth: Number(ethers.formatEther(priceWei)),
   };
 }
 
@@ -301,7 +501,11 @@ export async function delistNFTWithWallet({ tokenId, walletId, onStage }) {
 
   assertContractAddress();
   const { signer, account } = await getProviderAndSigner(walletId);
-  const contract = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_CONTRACT_ABI, signer);
+  const contract = new ethers.Contract(
+    NFT_CONTRACT_ADDRESS,
+    NFT_CONTRACT_ABI,
+    signer,
+  );
 
   onStage?.("wallet");
   const tx = await contract.cancelListing(tokenId);
@@ -311,18 +515,28 @@ export async function delistNFTWithWallet({ tokenId, walletId, onStage }) {
 
   return {
     account,
-    txHash: receipt.hash
+    txHash: receipt.hash,
   };
 }
 
-export async function buyNFTWithWallet({ tokenId, walletId, fallbackPriceWei = "", fallbackPriceEth = 0, onStage }) {
+export async function buyNFTWithWallet({
+  tokenId,
+  walletId,
+  fallbackPriceWei = "",
+  fallbackPriceEth = 0,
+  onStage,
+}) {
   if (!tokenId) {
     throw new Error("链上编号无效，无法购买");
   }
 
   assertContractAddress();
   const { signer, account } = await getProviderAndSigner(walletId);
-  const contract = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_CONTRACT_ABI, signer);
+  const contract = new ethers.Contract(
+    NFT_CONTRACT_ADDRESS,
+    NFT_CONTRACT_ABI,
+    signer,
+  );
 
   let seller = "";
   let priceWei = 0n;
@@ -338,7 +552,9 @@ export async function buyNFTWithWallet({ tokenId, walletId, fallbackPriceWei = "
   } else {
     const hasBuy = await hasBuyEntryPoint(contract, tokenId, account);
     if (!hasBuy) {
-      throw new Error("当前合约是旧版（仅支持铸造），不支持真实购买。请部署新版合约并更新 NEXT_PUBLIC_NFT_CONTRACT_ADDRESS");
+      throw new Error(
+        "当前合约是旧版（仅支持铸造），不支持真实购买。请部署新版合约并更新 NEXT_PUBLIC_NFT_CONTRACT_ADDRESS",
+      );
     }
 
     const fallbackWei = String(fallbackPriceWei || "").trim();
@@ -353,7 +569,9 @@ export async function buyNFTWithWallet({ tokenId, walletId, fallbackPriceWei = "
     } else {
       const fallback = safeNumber(fallbackPriceEth);
       if (fallback <= 0) {
-        throw new Error("当前合约无法读取上架信息，且没有可用价格，无法发起购买");
+        throw new Error(
+          "当前合约无法读取上架信息，且没有可用价格，无法发起购买",
+        );
       }
       priceWei = toEthWei(fallback);
       active = true;
@@ -380,6 +598,6 @@ export async function buyNFTWithWallet({ tokenId, walletId, fallbackPriceWei = "
     txHash: receipt.hash,
     priceWei: priceWei.toString(),
     priceEth: Number(ethers.formatEther(priceWei)),
-    listingSource
+    listingSource,
   };
 }

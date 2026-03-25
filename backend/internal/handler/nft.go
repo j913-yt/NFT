@@ -11,6 +11,7 @@ import (
 	"nft-backend/internal/service"
 	"nft-backend/internal/util"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/gorilla/mux"
 )
 
@@ -20,6 +21,8 @@ var allowedNFTCategories = map[string]bool{
 	"video": true,
 	"other": true,
 }
+
+const maxRoyaltyFeeBps uint16 = 2500
 
 type NFTHandler struct {
 	svc *service.NFTService
@@ -80,6 +83,7 @@ func (h *NFTHandler) Create(w http.ResponseWriter, r *http.Request) {
 	nft.Contract = strings.TrimSpace(nft.Contract)
 	nft.TokenID = strings.TrimSpace(nft.TokenID)
 	nft.PriceUnit = strings.ToUpper(strings.TrimSpace(nft.PriceUnit))
+	nft.RoyaltyReceiver = strings.ToLower(strings.TrimSpace(nft.RoyaltyReceiver))
 
 	if nft.Name == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "名称不能为空"})
@@ -95,6 +99,23 @@ func (h *NFTHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if !allowedNFTCategories[nft.Category] {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "不支持的 NFT 分类"})
 		return
+	}
+
+	if nft.RoyaltyFeeBps > maxRoyaltyFeeBps {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "版税比例不能超过 25%"})
+		return
+	}
+	if nft.RoyaltyFeeBps > 0 {
+		if nft.RoyaltyReceiver == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"message": "启用版税时需要填写版税接收地址"})
+			return
+		}
+		if !common.IsHexAddress(nft.RoyaltyReceiver) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"message": "版税接收地址格式错误"})
+			return
+		}
+	} else {
+		nft.RoyaltyReceiver = ""
 	}
 
 	if nft.MediaURL == "" {

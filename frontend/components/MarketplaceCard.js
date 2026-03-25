@@ -9,7 +9,7 @@ const categoryLabelMap = {
   art: "艺术",
   music: "音乐",
   video: "视频",
-  other: "其他"
+  other: "其他",
 };
 
 function formatPrice(value, unit = "ETH") {
@@ -18,6 +18,12 @@ function formatPrice(value, unit = "ETH") {
   if (!Number.isFinite(num) || num <= 0) return `未上架 (${safeUnit})`;
   if (num < 0.00000001) return `< 0.00000001 ${safeUnit}`;
   return `${num.toFixed(8).replace(/\.?0+$/, "")} ${safeUnit}`;
+}
+
+function formatRoyaltyPercent(bps) {
+  const num = Number(bps || 0);
+  if (!Number.isFinite(num) || num <= 0) return "0";
+  return (num / 100).toFixed(2).replace(/\.?0+$/, "");
 }
 
 function CardMedia({ nft }) {
@@ -62,7 +68,7 @@ export default function MarketplaceCard({
   href,
   isFavorite = false,
   onToggleFavorite,
-  showFavorite = false
+  showFavorite = false,
 }) {
   const router = useRouter();
   const linkRef = useRef(null);
@@ -70,6 +76,7 @@ export default function MarketplaceCard({
   const category = categoryLabelMap[nft?.category] || categoryLabelMap.other;
   const targetHref = href || `/nfts/${nft?.id}`;
   const tokenLabel = nft?.tokenId ? `#${nft.tokenId}` : "#待上链";
+  const royaltyBps = Number(nft?.royaltyFeeBps || 0);
 
   useEffect(() => {
     return () => {
@@ -91,8 +98,12 @@ export default function MarketplaceCard({
     ripple.style.height = `${size}px`;
 
     const hasPoint = Number.isFinite(clientX) && Number.isFinite(clientY);
-    const left = hasPoint ? clientX - rect.left - size / 2 : rect.width / 2 - size / 2;
-    const top = hasPoint ? clientY - rect.top - size / 2 : rect.height / 2 - size / 2;
+    const left = hasPoint
+      ? clientX - rect.left - size / 2
+      : rect.width / 2 - size / 2;
+    const top = hasPoint
+      ? clientY - rect.top - size / 2
+      : rect.height / 2 - size / 2;
     ripple.style.left = `${left}px`;
     ripple.style.top = `${top}px`;
 
@@ -102,20 +113,25 @@ export default function MarketplaceCard({
       () => {
         ripple.remove();
       },
-      { once: true }
+      { once: true },
     );
   };
 
   const shouldDelayNavigation = (event) => {
     if (event.defaultPrevented) return false;
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return false;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+      return false;
     if (event.button !== 0) return false;
     const target = event.currentTarget.getAttribute("target");
     return !target || target === "_self";
   };
 
   const prefersReducedMotion = () => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+    if (
+      typeof window === "undefined" ||
+      typeof window.matchMedia !== "function"
+    )
+      return false;
     return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   };
 
@@ -146,7 +162,9 @@ export default function MarketplaceCard({
     }, 230);
   };
 
-  const contractText = nft?.contract ? String(nft.contract).slice(0, 14) : "NFT Collection";
+  const contractText = nft?.contract
+    ? String(nft.contract).slice(0, 14)
+    : "NFT Collection";
 
   return (
     <Link
@@ -187,7 +205,16 @@ export default function MarketplaceCard({
       </div>
 
       <div className="market-card-meta">
-        <span>{tokenLabel}</span>
+        <div className="flex flex-col gap-0.5">
+          <span>{tokenLabel}</span>
+          <span
+            className={royaltyBps > 0 ? "text-[#9ad0ff]" : "text-[#8ea0c6]"}
+          >
+            {royaltyBps > 0
+              ? `版税 ${formatRoyaltyPercent(royaltyBps)}%`
+              : "无版税"}
+          </span>
+        </div>
         <strong>{formatPrice(nft?.price, nft?.priceUnit)}</strong>
       </div>
     </Link>

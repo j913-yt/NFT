@@ -3,9 +3,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { createOrder, getNFTById, getNFTOrderHistory, updateNFTListing } from "@/lib/api";
+import {
+  createOrder,
+  getNFTById,
+  getNFTOrderHistory,
+  updateNFTListing,
+} from "@/lib/api";
 import { getNFTMedia } from "@/lib/media";
-import { buyNFTWithWallet, delistNFTWithWallet, listNFTWithWallet } from "@/lib/web3";
+import {
+  buyNFTWithWallet,
+  delistNFTWithWallet,
+  getRoyaltyInfoOnChain,
+  listNFTWithWallet,
+} from "@/lib/web3";
 import TxProgressCard from "@/components/TxProgressCard";
 
 const TX_EXPLORER_BASE =
@@ -16,7 +26,7 @@ const categoryLabelMap = {
   art: "艺术",
   music: "音乐",
   video: "视频",
-  other: "其他"
+  other: "其他",
 };
 
 const formatPrice = (value, unit = "ETH") => {
@@ -27,6 +37,12 @@ const formatPrice = (value, unit = "ETH") => {
   if (num < 0.00000001) return `< 0.00000001 ${safeUnit}`;
   const normalized = num.toFixed(8).replace(/\.?0+$/, "");
   return `${normalized} ${safeUnit}`;
+};
+
+const formatRoyaltyPercent = (bps) => {
+  const n = Number(bps || 0);
+  if (!Number.isFinite(n) || n <= 0) return "0";
+  return (n / 100).toFixed(2).replace(/\.?0+$/, "");
 };
 
 const shortHex = (value, left = 6, right = 4) => {
@@ -40,7 +56,7 @@ const formatTime = (value) => {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "-";
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(
-    d.getHours()
+    d.getHours(),
   ).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
@@ -62,7 +78,9 @@ function readCurrentUser() {
 }
 
 function hasPositiveWei(value) {
-  const normalized = String(value ?? "").trim().replace(/^0+/, "");
+  const normalized = String(value ?? "")
+    .trim()
+    .replace(/^0+/, "");
   return normalized !== "";
 }
 
@@ -73,7 +91,9 @@ function PrimaryMedia({ nft }) {
 
   if (!mediaUrl) {
     return (
-      <div className={`${mediaFrameClass} flex items-center justify-center bg-black/40 text-xs text-soft`}>
+      <div
+        className={`${mediaFrameClass} flex items-center justify-center bg-black/40 text-xs text-soft`}
+      >
         暂无媒体内容
       </div>
     );
@@ -105,7 +125,12 @@ function PrimaryMedia({ nft }) {
         )}
         <div className="absolute inset-0 bg-black/45" />
         <div className="absolute bottom-6 left-6 right-6 rounded-2xl bg-black/45 p-3 backdrop-blur-sm">
-          <audio controls src={mediaUrl} className="w-full" preload="metadata" />
+          <audio
+            controls
+            src={mediaUrl}
+            className="w-full"
+            preload="metadata"
+          />
         </div>
       </div>
     );
@@ -140,6 +165,7 @@ export default function NFTDetailPage() {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("info");
   const [tradeProgress, setTradeProgress] = useState(null);
+  const [royaltyInfo, setRoyaltyInfo] = useState(null);
 
   useEffect(() => {
     setCurrentUser(readCurrentUser());
@@ -195,10 +221,59 @@ export default function NFTDetailPage() {
     };
   }, [id]);
 
+  useEffect(() => {
+    if (!nft?.tokenId) {
+      setRoyaltyInfo(null);
+      return;
+    }
+
+    let active = true;
+    const loadRoyalty = async () => {
+      try {
+        const chainInfo = await getRoyaltyInfoOnChain({
+          tokenId: nft.tokenId,
+          salePriceWei: nft.priceWei || "",
+          salePriceEth: Number(nft.price || 0),
+        });
+        if (!active) return;
+        setRoyaltyInfo(chainInfo);
+      } catch {
+        if (!active) return;
+        const fallbackFeeBps = Number(nft.royaltyFeeBps || 0);
+        const fallbackPrice = Number(nft.price || 0);
+        const fallbackRoyalty =
+          fallbackFeeBps > 0 ? (fallbackPrice * fallbackFeeBps) / 10000 : 0;
+        setRoyaltyInfo({
+          receiver: nft.royaltyReceiver || "",
+          feeBps: fallbackFeeBps,
+          royaltyEth: fallbackRoyalty,
+          sellerReceiveEth: Math.max(fallbackPrice - fallbackRoyalty, 0),
+        });
+      }
+    };
+
+    loadRoyalty();
+    return () => {
+      active = false;
+    };
+  }, [nft]);
+
   const isOwner = useMemo(() => {
     if (!currentUser?.id || !nft?.ownerId) return false;
     return Number(currentUser.id) === Number(nft.ownerId);
   }, [currentUser, nft]);
+
+  const royaltyFeeBps = Number(royaltyInfo?.feeBps ?? nft?.royaltyFeeBps ?? 0);
+  const royaltyPercent = formatRoyaltyPercent(royaltyFeeBps);
+  const royaltyReceiver = royaltyInfo?.receiver || nft?.royaltyReceiver || "";
+  const royaltyAmountEth = Number(
+    royaltyInfo?.royaltyEth ??
+      (Number(nft?.price || 0) * royaltyFeeBps) / 10000,
+  );
+  const sellerReceiveEth = Number(
+    royaltyInfo?.sellerReceiveEth ??
+      Math.max(Number(nft?.price || 0) - royaltyAmountEth, 0),
+  );
 
   const isListed = hasPositiveWei(nft?.priceWei);
   const canBuy = !isOwner && isListed;
@@ -225,7 +300,7 @@ export default function NFTDetailPage() {
       detail: "请在钱包中确认购买交易...",
       txHash: "",
       error: "",
-      flow: "buy"
+      flow: "buy",
     });
 
     try {
@@ -240,7 +315,7 @@ export default function NFTDetailPage() {
               step: "wallet",
               detail: "请在钱包中确认购买交易...",
               txHash: prev?.txHash || "",
-              error: ""
+              error: "",
             }));
           } else if (stage === "chain") {
             setTradeProgress((prev) => ({
@@ -248,10 +323,10 @@ export default function NFTDetailPage() {
               step: "chain",
               detail: "交易已广播，等待链上打包确认...",
               txHash: txHash || prev?.txHash || "",
-              error: ""
+              error: "",
             }));
           }
-        }
+        },
       });
 
       setTradeProgress((prev) => ({
@@ -259,14 +334,14 @@ export default function NFTDetailPage() {
         step: "sync",
         detail: "链上确认完成，正在写入订单记录...",
         txHash: purchase.txHash || prev?.txHash || "",
-        error: ""
+        error: "",
       }));
 
       const order = await createOrder({
         nftId: nft.id,
         priceWei: purchase.priceWei,
         price: purchase.priceEth,
-        txHash: purchase.txHash
+        txHash: purchase.txHash,
       });
 
       setTradeProgress((prev) => ({
@@ -274,11 +349,15 @@ export default function NFTDetailPage() {
         step: "done",
         detail: `购买完成，订单 #${order.id} 已创建`,
         txHash: purchase.txHash || prev?.txHash || "",
-        error: ""
+        error: "",
       }));
 
       setMessageType("success");
-      setMessage(`购买成功，订单号 #${order.id}`);
+      const royaltyText =
+        royaltyFeeBps > 0
+          ? `，本次交易版税约 ${formatEth(royaltyAmountEth)} ETH`
+          : "";
+      setMessage(`购买成功，订单号 #${order.id}${royaltyText}`);
 
       setOwner((prev) => ({ ...prev, wallet: purchase.account }));
       setNft((prev) => {
@@ -288,7 +367,7 @@ export default function NFTDetailPage() {
           ownerId: currentUser?.id || prev.ownerId,
           priceWei: "0",
           price: 0,
-          priceUnit: "ETH"
+          priceUnit: "ETH",
         };
       });
       setListingPrice("");
@@ -304,9 +383,9 @@ export default function NFTDetailPage() {
           status: order.status,
           createdAt: new Date().toISOString(),
           buyerWallet: purchase.account,
-          sellerWallet: owner?.wallet || ""
+          sellerWallet: owner?.wallet || "",
         },
-        ...prev
+        ...prev,
       ]);
     } catch (err) {
       const errMessage = err.message || "购买失败，请稍后重试";
@@ -317,7 +396,7 @@ export default function NFTDetailPage() {
         step: prev?.step || "wallet",
         detail: "购买流程已中断",
         txHash: prev?.txHash || "",
-        error: errMessage
+        error: errMessage,
       }));
     } finally {
       setBuying(false);
@@ -351,7 +430,7 @@ export default function NFTDetailPage() {
       detail: "请在钱包中确认上架交易...",
       txHash: "",
       error: "",
-      flow: "list"
+      flow: "list",
     });
 
     try {
@@ -365,7 +444,7 @@ export default function NFTDetailPage() {
               step: "wallet",
               detail: "请在钱包中确认上架交易...",
               txHash: prev?.txHash || "",
-              error: ""
+              error: "",
             }));
           } else if (stage === "chain") {
             setTradeProgress((prev) => ({
@@ -373,10 +452,10 @@ export default function NFTDetailPage() {
               step: "chain",
               detail: "交易已广播，等待链上打包确认...",
               txHash: txHash || prev?.txHash || "",
-              error: ""
+              error: "",
             }));
           }
-        }
+        },
       });
 
       setTradeProgress((prev) => ({
@@ -384,13 +463,13 @@ export default function NFTDetailPage() {
         step: "sync",
         detail: "链上确认完成，正在同步后台上架状态...",
         txHash: listed?.txHash || prev?.txHash || "",
-        error: ""
+        error: "",
       }));
 
       const updated = await updateNFTListing(nft.id, {
         priceWei: listed.priceWei,
         price: nextPrice,
-        priceUnit: "ETH"
+        priceUnit: "ETH",
       });
 
       setNft(updated);
@@ -399,7 +478,7 @@ export default function NFTDetailPage() {
         step: "done",
         detail: isListed ? "上架价格已更新" : "NFT 已重新上架",
         txHash: listed?.txHash || prev?.txHash || "",
-        error: ""
+        error: "",
       }));
       setMessageType("success");
       setMessage(isListed ? "上架价格已更新" : "NFT 已重新上架");
@@ -412,7 +491,7 @@ export default function NFTDetailPage() {
         step: prev?.step || "wallet",
         detail: "上架流程已中断",
         txHash: prev?.txHash || "",
-        error: errMessage
+        error: errMessage,
       }));
     } finally {
       setRelisting(false);
@@ -444,7 +523,7 @@ export default function NFTDetailPage() {
       detail: "请在钱包中确认下架交易...",
       txHash: "",
       error: "",
-      flow: "delist"
+      flow: "delist",
     });
 
     try {
@@ -457,7 +536,7 @@ export default function NFTDetailPage() {
               step: "wallet",
               detail: "请在钱包中确认下架交易...",
               txHash: prev?.txHash || "",
-              error: ""
+              error: "",
             }));
           } else if (stage === "chain") {
             setTradeProgress((prev) => ({
@@ -465,10 +544,10 @@ export default function NFTDetailPage() {
               step: "chain",
               detail: "交易已广播，等待链上打包确认...",
               txHash: txHash || prev?.txHash || "",
-              error: ""
+              error: "",
             }));
           }
-        }
+        },
       });
 
       setTradeProgress((prev) => ({
@@ -476,13 +555,13 @@ export default function NFTDetailPage() {
         step: "sync",
         detail: "链上确认完成，正在同步后台下架状态...",
         txHash: delisted?.txHash || prev?.txHash || "",
-        error: ""
+        error: "",
       }));
 
       const updated = await updateNFTListing(nft.id, {
         priceWei: "0",
         price: 0,
-        priceUnit: "ETH"
+        priceUnit: "ETH",
       });
 
       setNft(updated);
@@ -492,7 +571,7 @@ export default function NFTDetailPage() {
         step: "done",
         detail: "NFT 已下架",
         txHash: delisted?.txHash || prev?.txHash || "",
-        error: ""
+        error: "",
       }));
       setMessageType("success");
       setMessage("NFT 已下架");
@@ -505,7 +584,7 @@ export default function NFTDetailPage() {
         step: prev?.step || "wallet",
         detail: "下架流程已中断",
         txHash: prev?.txHash || "",
-        error: errMessage
+        error: errMessage,
       }));
     } finally {
       setDelisting(false);
@@ -537,29 +616,78 @@ export default function NFTDetailPage() {
           <div className="flex flex-col gap-4">
             <div>
               <span className="badge">藏品详情</span>
-              <h1 className="mt-3 text-4xl font-black text-white">{nft.name || "未命名 NFT"}</h1>
-              <p className="mt-2 text-sm leading-7 text-soft">{nft.description || "暂无描述"}</p>
+              <h1 className="mt-3 text-4xl font-black text-white">
+                {nft.name || "未命名 NFT"}
+              </h1>
+              <p className="mt-2 text-sm leading-7 text-soft">
+                {nft.description || "暂无描述"}
+              </p>
             </div>
 
             <div className="glass-panel p-4 text-xs text-soft">
               <div className="mb-2 grid grid-cols-3 gap-2 text-center">
                 <div className="rounded-lg border border-white/10 bg-white/5 px-2 py-2">
                   <p className="text-[11px] text-dim">链上编号</p>
-                  <p className="mt-1 text-sm font-black text-white">{nft.tokenId || "-"}</p>
+                  <p className="mt-1 text-sm font-black text-white">
+                    {nft.tokenId || "-"}
+                  </p>
                 </div>
                 <div className="rounded-lg border border-white/10 bg-white/5 px-2 py-2">
                   <p className="text-[11px] text-dim">分类</p>
-                  <p className="mt-1 text-sm font-black text-white">{categoryLabelMap[nft.category] || "其他"}</p>
+                  <p className="mt-1 text-sm font-black text-white">
+                    {categoryLabelMap[nft.category] || "其他"}
+                  </p>
                 </div>
                 <div className="rounded-lg border border-white/10 bg-white/5 px-2 py-2">
                   <p className="text-[11px] text-dim">价格</p>
-                  <p className="mt-1 text-sm font-black text-white">{formatPrice(nft.price, nft.priceUnit)}</p>
+                  <p className="mt-1 text-sm font-black text-white">
+                    {formatPrice(nft.price, nft.priceUnit)}
+                  </p>
                 </div>
               </div>
               <div className="space-y-1">
                 <p className="break-all">拥有者: {owner?.wallet || "未知"}</p>
                 <p className="break-all">链上 URI: {nft.tokenUri || "-"}</p>
-                <p className="break-all">元数据地址: {nft.metadataUrl || "-"}</p>
+                <p className="break-all">
+                  元数据地址: {nft.metadataUrl || "-"}
+                </p>
+              </div>
+
+              <div className="mt-3 rounded-xl border border-[#78a8ff44] bg-[linear-gradient(120deg,rgba(78,130,255,0.14),rgba(14,24,40,0.8))] p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#9eb8eb]">
+                    Royalty
+                  </p>
+                  <span className="rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-[11px] font-semibold text-white">
+                    {royaltyPercent}%
+                  </span>
+                </div>
+                {royaltyFeeBps > 0 ? (
+                  <div className="mt-2 space-y-1 text-[11px] text-[#cbd8f8]">
+                    <p className="break-all">
+                      版税接收:{" "}
+                      <span className="text-white">
+                        {royaltyReceiver || "-"}
+                      </span>
+                    </p>
+                    <p>
+                      按当前价格预计版税:{" "}
+                      <span className="font-semibold text-white">
+                        {formatEth(royaltyAmountEth)} ETH
+                      </span>
+                    </p>
+                    <p>
+                      卖家实收预计:{" "}
+                      <span className="font-semibold text-white">
+                        {formatEth(sellerReceiveEth)} ETH
+                      </span>
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-[11px] text-[#b5c7f1]">
+                    当前作品未启用版税
+                  </p>
+                )}
               </div>
             </div>
 
@@ -569,11 +697,19 @@ export default function NFTDetailPage() {
                 disabled={buying || !canBuy}
                 className="btn-primary w-full justify-center disabled:opacity-55"
               >
-                {!canBuy ? "暂未上架" : buying ? "链上购买中..." : "真实购买（测试币）"}
+                {!canBuy
+                  ? "暂未上架"
+                  : buying
+                    ? "链上购买中..."
+                    : "真实购买（测试币）"}
               </button>
             ) : (
               <div className="space-y-2 rounded-xl border border-white/10 bg-white/5 p-3">
-                <p className="text-[12px] text-soft">{isListed ? "修改上架价格" : "该 NFT 当前未上架，输入新价格后可重新上架"}</p>
+                <p className="text-[12px] text-soft">
+                  {isListed
+                    ? "修改上架价格"
+                    : "该 NFT 当前未上架，输入新价格后可重新上架"}
+                </p>
                 <div className="flex items-center gap-2">
                   <input
                     className="input-neo"
@@ -590,7 +726,11 @@ export default function NFTDetailPage() {
                     disabled={relisting || delisting}
                     className="btn-primary shrink-0 px-4 disabled:opacity-55"
                   >
-                    {relisting ? "提交中..." : isListed ? "更新价格" : "重新上架"}
+                    {relisting
+                      ? "提交中..."
+                      : isListed
+                        ? "更新价格"
+                        : "重新上架"}
                   </button>
                   {isListed && (
                     <button
@@ -623,19 +763,25 @@ export default function NFTDetailPage() {
               />
             )}
 
-            {message && <p className={`status-message ${messageType}`}>{message}</p>}
+            {message && (
+              <p className={`status-message ${messageType}`}>{message}</p>
+            )}
           </div>
         </div>
       </section>
 
       <section className="glass-panel px-5 py-4">
         <div className="mb-3 flex items-center gap-4 text-sm font-semibold">
-          <span className="border-b-2 border-[#ff1f9b] pb-1 text-[#ff7bc8]">活动记录</span>
+          <span className="border-b-2 border-[#ff1f9b] pb-1 text-[#ff7bc8]">
+            活动记录
+          </span>
           <span className="text-soft">成交历史</span>
         </div>
         <div className="neo-divider mb-3" />
 
-        {loadingHistory && <p className="status-message info">正在加载交易记录...</p>}
+        {loadingHistory && (
+          <p className="status-message info">正在加载交易记录...</p>
+        )}
         {historyError && <p className="status-message error">{historyError}</p>}
 
         {!loadingHistory && !historyError && orderHistory.length === 0 ? (
@@ -645,7 +791,10 @@ export default function NFTDetailPage() {
               <Link href="/nfts" className="btn-outline px-3 py-1.5 text-xs">
                 去市场浏览
               </Link>
-              <Link href="/nfts/create" className="btn-primary px-3 py-1.5 text-xs">
+              <Link
+                href="/nfts/create"
+                className="btn-primary px-3 py-1.5 text-xs"
+              >
                 去创建 NFT
               </Link>
             </div>
@@ -653,13 +802,22 @@ export default function NFTDetailPage() {
         ) : (
           <div className="space-y-2">
             {orderHistory.map((item) => (
-              <div key={item.id} className="rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-soft">
+              <div
+                key={item.id}
+                className="rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-soft"
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-semibold text-white">成交价: {formatPrice(item.price, "ETH")}</p>
+                  <p className="font-semibold text-white">
+                    成交价: {formatPrice(item.price, "ETH")}
+                  </p>
                   <p>{formatTime(item.createdAt)}</p>
                 </div>
-                <p className="mt-1">卖家: {item.sellerName || shortHex(item.sellerWallet || "")}</p>
-                <p className="mt-1">买家: {item.buyerName || shortHex(item.buyerWallet || "")}</p>
+                <p className="mt-1">
+                  卖家: {item.sellerName || shortHex(item.sellerWallet || "")}
+                </p>
+                <p className="mt-1">
+                  买家: {item.buyerName || shortHex(item.buyerWallet || "")}
+                </p>
                 <div className="mt-1 flex flex-wrap items-center gap-2">
                   <span>交易:</span>
                   {item.txHash ? (

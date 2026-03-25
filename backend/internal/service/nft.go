@@ -48,6 +48,9 @@ func (s *NFTService) Create(nft *model.NFT) error {
 	if nft.PriceUnit == "" {
 		nft.PriceUnit = "ETH"
 	}
+	if nft.RoyaltyFeeBps == 0 {
+		nft.RoyaltyReceiver = ""
+	}
 
 	return s.db.Create(nft).Error
 }

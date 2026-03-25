@@ -14,24 +14,26 @@ type User struct {
 }
 
 type NFT struct {
-	ID          uint      `gorm:"primaryKey" json:"id"`
-	Contract    string    `gorm:"size:255;not null;uniqueIndex:idx_nft_contract_token" json:"contract"`
-	TokenID     string    `gorm:"size:255;not null;uniqueIndex:idx_nft_contract_token" json:"tokenId"`
-	Name        string    `gorm:"size:255" json:"name"`
-	Description string    `gorm:"size:1000" json:"description"`
-	ImageURL    string    `gorm:"size:1000" json:"imageUrl"`
-	MediaURL    string    `gorm:"size:1000" json:"mediaUrl"`
-	MediaType   string    `gorm:"size:50" json:"mediaType"`
-	MimeType    string    `gorm:"size:100" json:"mimeType"`
-	TokenURI    string    `gorm:"size:1000" json:"tokenUri"`
-	MetadataURL string    `gorm:"size:1000" json:"metadataUrl"`
-	Storage     string    `gorm:"size:50" json:"storage"`
-	Category    string    `gorm:"size:100;index" json:"category"`
-	OwnerID     uint      `gorm:"index" json:"ownerId"`
-	PriceWei    string    `gorm:"size:78;type:varchar(78);not null;default:'0';index" json:"priceWei"`
-	Price       float64   `json:"price"`
-	PriceUnit   string    `gorm:"size:20" json:"priceUnit"`
-	CreatedAt   time.Time `gorm:"index" json:"createdAt"`
+	ID              uint      `gorm:"primaryKey" json:"id"`
+	Contract        string    `gorm:"size:255;not null;uniqueIndex:idx_nft_contract_token" json:"contract"`
+	TokenID         string    `gorm:"size:255;not null;uniqueIndex:idx_nft_contract_token" json:"tokenId"`
+	Name            string    `gorm:"size:255" json:"name"`
+	Description     string    `gorm:"size:1000" json:"description"`
+	ImageURL        string    `gorm:"size:1000" json:"imageUrl"`
+	MediaURL        string    `gorm:"size:1000" json:"mediaUrl"`
+	MediaType       string    `gorm:"size:50" json:"mediaType"`
+	MimeType        string    `gorm:"size:100" json:"mimeType"`
+	TokenURI        string    `gorm:"size:1000" json:"tokenUri"`
+	MetadataURL     string    `gorm:"size:1000" json:"metadataUrl"`
+	Storage         string    `gorm:"size:50" json:"storage"`
+	Category        string    `gorm:"size:100;index" json:"category"`
+	OwnerID         uint      `gorm:"index" json:"ownerId"`
+	PriceWei        string    `gorm:"size:78;type:varchar(78);not null;default:'0';index" json:"priceWei"`
+	Price           float64   `json:"price"`
+	PriceUnit       string    `gorm:"size:20" json:"priceUnit"`
+	RoyaltyReceiver string    `gorm:"size:255" json:"royaltyReceiver"`
+	RoyaltyFeeBps   uint16    `gorm:"default:0" json:"royaltyFeeBps"`
+	CreatedAt       time.Time `gorm:"index" json:"createdAt"`
 }
 
 type Order struct {
