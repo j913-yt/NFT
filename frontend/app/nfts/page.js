@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import MarketplaceCard from "@/components/MarketplaceCard";
 import MarketplaceFilters from "@/components/MarketplaceFilters";
 import MarketplaceStats from "@/components/MarketplaceStats";
+import AnimatedSection from "@/components/AnimatedSection";
 import { getNFTs } from "@/lib/api";
 import { filterAndSortNFTs } from "@/lib/marketplace";
 
@@ -147,7 +148,7 @@ export default function NFTListPage() {
 
   return (
     <div className="flex w-full flex-col gap-6">
-      <section className="glass-panel p-5 sm:p-6">
+      <AnimatedSection className="glass-panel p-5 sm:p-6">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
             <span className="badge">Marketplace</span>
@@ -159,7 +160,7 @@ export default function NFTListPage() {
           </span>
         </div>
         <MarketplaceStats nfts={nfts} loading={loading} />
-      </section>
+      </AnimatedSection>
 
       <MarketplaceFilters
         filters={filters}

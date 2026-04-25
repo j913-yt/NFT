@@ -1,0 +1,7 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,Confirm compatible NextUI dependency path,DONE,确定可安装版本和 peer dependencies,npm view @nextui-org/react @heroui/react,2026-04-25,0,HeroUI 3 要求 React19/Tailwind4；采用 @nextui-org/react 2.6.11 + framer-motion
+2,Install NextUI dependencies,DONE,package.json package-lock node_modules 更新,npm install @nextui-org/react@2.6.11 framer-motion@^11.5.6,2026-04-25,0,npm 提示 NextUI 已弃用但当前 React18/Tailwind3 不适合 HeroUI3
+3,Wire provider and Tailwind plugin,DONE,NextUIProvider 和 nextui() 生效,npm run lint,2026-04-25,0,新增 Providers 并配置 tailwind nextui 插件
+4,Upgrade shared marketplace components,DONE,Header Card Tabs Filter Stats 使用 NextUI 交互,npm run lint,2026-04-25,0,AppHeader/Tabs/Stats/Filters/Card 已接入 NextUI
+5,Enhance core feature pages,DONE,详情/创建/个人中心关键交互增强,npm run lint,2026-04-25,0,TxProgressCard 使用 NextUI Progress/Chip/Snippet；首页/市场加入 framer-motion 进入动画；profile 大文件未扩大改造
+6,Run validation and restart dev server,DONE,lint build 和本地路由验证通过,npm run build,2026-04-25,0,lint/build 通过；/,/nfts,/nfts/create,/profile 均返回 200

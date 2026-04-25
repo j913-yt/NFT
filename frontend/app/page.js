@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import MarketplaceCard from "@/components/MarketplaceCard";
 import MarketplaceStats from "@/components/MarketplaceStats";
 import NFTTypeTabs from "@/components/NFTTypeTabs";
+import AnimatedSection from "@/components/AnimatedSection";
 import { getNFTs } from "@/lib/api";
 
 const FEATURED_COUNT = 4;
@@ -28,7 +29,7 @@ function LoadingGrid() {
 
 function HomeHero({ nfts, loading, error }) {
   return (
-    <section className="home-hero">
+    <AnimatedSection className="home-hero">
       <div className="home-hero-content">
         <span className="badge">Marketplace</span>
         <h1>面向数字藏品创作者与收藏者的链上交易市场</h1>
@@ -44,13 +45,13 @@ function HomeHero({ nfts, loading, error }) {
         </div>
         {error && <p className="status-message error">{error}</p>}
       </div>
-    </section>
+    </AnimatedSection>
   );
 }
 
 function FeaturedSection({ featured, loading, selectedType, onTypeChange }) {
   return (
-    <section className="glass-panel px-5 py-5 sm:px-6">
+    <AnimatedSection className="glass-panel px-5 py-5 sm:px-6" delay={0.08}>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
           <span className="badge">Browse</span>
@@ -76,7 +77,7 @@ function FeaturedSection({ featured, loading, selectedType, onTypeChange }) {
           ))}
         </div>
       )}
-    </section>
+    </AnimatedSection>
   );
 }
 

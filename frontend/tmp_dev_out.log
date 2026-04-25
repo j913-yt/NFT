@@ -7,8 +7,10 @@
   - Environments: .env.local
 
  ✓ Starting...
- ✓ Ready in 3.4s
- ○ Compiling /nfts ...
- ✓ Compiled /nfts in 6.8s (1086 modules)
- GET / 200 in 7438ms
- GET /nfts 200 in 7467ms
+ ✓ Ready in 6.7s
+ ○ Compiling /profile ...
+ ✓ Compiled /profile in 36.4s (4223 modules)
+ GET / 200 in 99ms
+ GET /nfts 200 in 96ms
+ GET /nfts/create 200 in 141ms
+ GET /profile 200 in 160ms

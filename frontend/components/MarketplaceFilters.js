@@ -1,5 +1,6 @@
 "use client";
 
+import { Button, Checkbox, Input, Select, SelectItem } from "@nextui-org/react";
 import NFTTypeTabs from "@/components/NFTTypeTabs";
 import { SORT_OPTIONS } from "@/lib/marketplace";
 
@@ -7,24 +8,33 @@ function patchFilters(filters, patch, onChange) {
   onChange({ ...filters, ...patch });
 }
 
+function selectedKey(keys) {
+  return Array.from(keys)[0];
+}
+
 function SearchAndSort({ filters, onChange }) {
   return (
     <>
-      <input
-        className="input-neo xl:col-span-2"
-        placeholder="搜索名称 / 描述 / Token ID"
+      <Input
+        className="xl:col-span-2"
+        label="搜索"
+        placeholder="名称 / 描述 / Token ID"
+        radius="sm"
         value={filters.search}
-        onChange={(event) => patchFilters(filters, { search: event.target.value }, onChange)}
+        variant="bordered"
+        onValueChange={(search) => patchFilters(filters, { search }, onChange)}
       />
-      <select
-        className="input-neo"
-        value={filters.sortBy}
-        onChange={(event) => patchFilters(filters, { sortBy: event.target.value }, onChange)}
+      <Select
+        label="排序"
+        radius="sm"
+        selectedKeys={[filters.sortBy]}
+        variant="bordered"
+        onSelectionChange={(keys) => patchFilters(filters, { sortBy: selectedKey(keys) }, onChange)}
       >
         {SORT_OPTIONS.map((option) => (
-          <option key={option.id} value={option.id}>{option.label}</option>
+          <SelectItem key={option.id} value={option.id}>{option.label}</SelectItem>
         ))}
-      </select>
+      </Select>
     </>
   );
 }
@@ -32,23 +42,27 @@ function SearchAndSort({ filters, onChange }) {
 function PriceRange({ filters, onChange }) {
   return (
     <>
-      <input
-        className="input-neo"
-        type="number"
+      <Input
+        label="最低价"
         min="0"
+        placeholder="ETH"
+        radius="sm"
         step="0.00000001"
-        placeholder="最低价格 (ETH)"
+        type="number"
         value={filters.minPrice}
-        onChange={(event) => patchFilters(filters, { minPrice: event.target.value }, onChange)}
+        variant="bordered"
+        onValueChange={(minPrice) => patchFilters(filters, { minPrice }, onChange)}
       />
-      <input
-        className="input-neo"
-        type="number"
+      <Input
+        label="最高价"
         min="0"
+        placeholder="ETH"
+        radius="sm"
         step="0.00000001"
-        placeholder="最高价格 (ETH)"
+        type="number"
         value={filters.maxPrice}
-        onChange={(event) => patchFilters(filters, { maxPrice: event.target.value }, onChange)}
+        variant="bordered"
+        onValueChange={(maxPrice) => patchFilters(filters, { maxPrice }, onChange)}
       />
     </>
   );
@@ -58,34 +72,25 @@ export default function MarketplaceFilters({ filters, hasActiveFilters, onChange
   return (
     <section className="glass-panel p-4 sm:p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <NFTTypeTabs
-          selected={filters.category}
-          onChange={(category) => patchFilters(filters, { category }, onChange)}
-        />
-        <button
-          type="button"
-          className="btn-outline px-3 py-2 text-xs"
-          disabled={!hasActiveFilters}
-          onClick={onReset}
-        >
+        <NFTTypeTabs selected={filters.category} onChange={(category) => patchFilters(filters, { category }, onChange)} />
+        <Button color="primary" isDisabled={!hasActiveFilters} radius="full" size="sm" variant="flat" onPress={onReset}>
           重置筛选
-        </button>
+        </Button>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <SearchAndSort filters={filters} onChange={onChange} />
         <PriceRange filters={filters} onChange={onChange} />
       </div>
 
-      <label className="mt-3 inline-flex items-center gap-2 text-xs text-soft">
-        <input
-          type="checkbox"
-          className="h-4 w-4 accent-[#00d5c8]"
-          checked={filters.onlyFav}
-          onChange={(event) => patchFilters(filters, { onlyFav: event.target.checked }, onChange)}
-        />
+      <Checkbox
+        className="mt-3"
+        color="primary"
+        isSelected={filters.onlyFav}
+        onValueChange={(onlyFav) => patchFilters(filters, { onlyFav }, onChange)}
+      >
         仅查看收藏
-      </label>
+      </Checkbox>
     </section>
   );
 }
