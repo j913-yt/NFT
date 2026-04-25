@@ -1,0 +1,7 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,建立任务记录,DONE,SPEC/TODO/PROGRESS 存在,Test-Path .codex-tasks/20260425-thesis-docx/SPEC.md; Test-Path .codex-tasks/20260425-thesis-docx/TODO.csv; Test-Path .codex-tasks/20260425-thesis-docx/PROGRESS.md,2026-04-25,0,
+2,准备文档生成工具链,DONE,确认可用 Python 与 docx 渲染工具,load_workspace_dependencies,2026-04-25,0,bundled python 可用；python-docx 与 PIL 可导入
+3,整理论文结构与正文内容,DONE,形成符合规范的章节内容,Test-Path .codex-tasks/20260425-thesis-docx/raw/thesis_content.json,2026-04-25,0,摘要683字；标题符合20字内要求；正文含七个部分
+4,生成 Word 文档,DONE,生成目标 DOCX,Test-Path NFT数字藏品交易平台论文.docx,2026-04-25,0,已生成 DOCX 终稿
+5,渲染并检查 DOCX 页面,DONE,artifact-tool 渲染 PNG 成功并完成页面检查,Test-Path .codex-tasks/20260425-thesis-docx/render,2026-04-25,0,已渲染21页；修正表名与表格分离问题
+6,最终验证交付,DONE,DOCX 文件存在且字数/结构满足要求,Test-Path NFT数字藏品交易平台论文.docx,2026-04-25,0,正文约10194字；参考文献13条；目录与分页已更新

@@ -3,7 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getWalletNonce, walletLogin } from "@/lib/api";
-import { detectInjectedWallets, getProviderAndSigner } from "@/lib/web3";
+import {
+  detectInjectedWallets,
+  getPreferredWalletId,
+  getProviderAndSigner,
+  setPreferredWalletId,
+} from "@/lib/web3";
 
 function withTimeout(promise, ms, message) {
   let timer;
@@ -45,7 +50,11 @@ export default function WalletConnectButton() {
     const detected = detectInjectedWallets();
     setWalletOptions(detected);
     if (detected.length > 0) {
-      setSelectedWalletId((prev) => prev || detected[0].id);
+      const remembered = getPreferredWalletId();
+      const nextId =
+        detected.find((item) => item.id === remembered)?.id || detected[0].id;
+      setSelectedWalletId(nextId);
+      setPreferredWalletId(nextId);
     }
   }, []);
 
@@ -151,6 +160,7 @@ export default function WalletConnectButton() {
     }
 
     const walletId = selectedWalletId || walletOptions[0]?.id;
+    setPreferredWalletId(walletId);
     if (!walletId) {
       alert("请先选择钱包后重试");
       return;
@@ -203,6 +213,7 @@ export default function WalletConnectButton() {
       await withTimeout(walletLogin(addr, signature), 10000, "登录超时，请重试");
 
       if (opId !== opIdRef.current) return;
+      setPreferredWalletId(walletId);
       setLoggedIn(true);
       setShowModal(false);
       setStage(null);
@@ -237,7 +248,11 @@ export default function WalletConnectButton() {
           <select
             className="rounded-lg border border-white/20 bg-[#131b2a] px-2 py-1 text-[11px] text-[#d8e0ff] outline-none"
             value={selectedWalletId}
-            onChange={(e) => setSelectedWalletId(e.target.value)}
+            onChange={(e) => {
+              const nextId = e.target.value;
+              setSelectedWalletId(nextId);
+              setPreferredWalletId(nextId);
+            }}
           >
             <option value="">选择钱包</option>
             {walletOptions.map((w) => (

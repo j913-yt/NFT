@@ -1,0 +1,6 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,建立任务跟踪文件,DONE,SPEC/TODO/PROGRESS 均存在,Test-Path .codex-tasks/20260425-nft-design-doc/SPEC.md; Test-Path .codex-tasks/20260425-nft-design-doc/TODO.csv; Test-Path .codex-tasks/20260425-nft-design-doc/PROGRESS.md,2026-04-25,0,验证结果均为 True
+2,梳理项目结构与技术栈,DONE,形成可引用的结构和技术栈笔记,git ls-files,2026-04-25,1,项目为 frontend/backend/contracts/hardhat 分层结构；当前统计一方源码 7823 行
+3,提取核心业务与实现细节,DONE,完成业务模块和关键实现摘要,Select-String + Get-Content,2026-04-25,0,已梳理钱包登录、IPFS、NFT、订单、合约和前端页面流程
+4,撰写不少于8000字文档,DONE,生成最终 TXT 文档,Test-Path NFT数字藏品交易平台的设计与实现.txt,2026-04-25,0,已生成根目录 TXT 文档
+5,验证字数与产出文件,DONE,文档字符数不少于8000且文件可读取,(Get-Content -Raw 'NFT数字藏品交易平台的设计与实现.txt').Length,2026-04-25,0,总字符17382；非空白字符16369；中文字符10677

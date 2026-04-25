@@ -1,40 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { getNFTMedia } from "@/lib/media";
-
-const categoryLabelMap = {
-  art: "艺术",
-  music: "音乐",
-  video: "视频",
-  other: "其他",
-};
-
-function formatPrice(value, unit = "ETH") {
-  const safeUnit = unit || "ETH";
-  const num = Number(value || 0);
-  if (!Number.isFinite(num) || num <= 0) return `未上架 (${safeUnit})`;
-  if (num < 0.00000001) return `< 0.00000001 ${safeUnit}`;
-  return `${num.toFixed(8).replace(/\.?0+$/, "")} ${safeUnit}`;
-}
-
-function formatRoyaltyPercent(bps) {
-  const num = Number(bps || 0);
-  if (!Number.isFinite(num) || num <= 0) return "0";
-  return (num / 100).toFixed(2).replace(/\.?0+$/, "");
-}
+import { CATEGORY_LABELS, formatPrice, formatRoyaltyPercent } from "@/lib/marketplace";
 
 function CardMedia({ nft }) {
   const { mediaType, mediaUrl, coverUrl } = getNFTMedia(nft);
 
   if (!mediaUrl) {
-    return (
-      <div className="card-media-empty">
-        <span>暂无预览</span>
-      </div>
-    );
+    return <div className="card-media-empty">暂无预览</div>;
   }
 
   if (mediaType === "video") {
@@ -53,13 +28,44 @@ function CardMedia({ nft }) {
   }
 
   return (
-    <img
+    <Image
       src={coverUrl || mediaUrl}
       alt={nft?.name || "NFT"}
       className="card-media"
-      loading="lazy"
-      decoding="async"
+      width={520}
+      height={292}
+      unoptimized
     />
+  );
+}
+
+function FavoriteButton({ isFavorite, onClick }) {
+  return (
+    <button
+      type="button"
+      className={`market-fav-btn ${isFavorite ? "active" : ""}`}
+      onClick={onClick}
+      aria-label={isFavorite ? "取消收藏" : "加入收藏"}
+    >
+      {isFavorite ? "已收藏" : "收藏"}
+    </button>
+  );
+}
+
+function CardMeta({ nft }) {
+  const tokenLabel = nft?.tokenId ? `#${nft.tokenId}` : "#待上链";
+  const royaltyBps = Number(nft?.royaltyFeeBps || 0);
+
+  return (
+    <div className="market-card-meta">
+      <div className="flex min-w-0 flex-col gap-1">
+        <span>{tokenLabel}</span>
+        <span className={royaltyBps > 0 ? "text-[#9ff5ed]" : "text-dim"}>
+          {royaltyBps > 0 ? `版税 ${formatRoyaltyPercent(royaltyBps)}%` : "无版税"}
+        </span>
+      </div>
+      <strong>{formatPrice(nft?.price, nft?.priceUnit)}</strong>
+    </div>
   );
 }
 
@@ -68,155 +74,35 @@ export default function MarketplaceCard({
   href,
   isFavorite = false,
   onToggleFavorite,
-  showFavorite = false,
+  showFavorite = false
 }) {
-  const router = useRouter();
-  const linkRef = useRef(null);
-  const navTimerRef = useRef(null);
-  const category = categoryLabelMap[nft?.category] || categoryLabelMap.other;
   const targetHref = href || `/nfts/${nft?.id}`;
-  const tokenLabel = nft?.tokenId ? `#${nft.tokenId}` : "#待上链";
-  const royaltyBps = Number(nft?.royaltyFeeBps || 0);
-
-  useEffect(() => {
-    return () => {
-      if (navTimerRef.current) {
-        clearTimeout(navTimerRef.current);
-      }
-    };
-  }, []);
-
-  const spawnRipple = (clientX, clientY) => {
-    const el = linkRef.current;
-    if (!el) return;
-
-    const rect = el.getBoundingClientRect();
-    const size = Math.max(rect.width, rect.height) * 1.35;
-    const ripple = document.createElement("span");
-    ripple.className = "market-card-ripple";
-    ripple.style.width = `${size}px`;
-    ripple.style.height = `${size}px`;
-
-    const hasPoint = Number.isFinite(clientX) && Number.isFinite(clientY);
-    const left = hasPoint
-      ? clientX - rect.left - size / 2
-      : rect.width / 2 - size / 2;
-    const top = hasPoint
-      ? clientY - rect.top - size / 2
-      : rect.height / 2 - size / 2;
-    ripple.style.left = `${left}px`;
-    ripple.style.top = `${top}px`;
-
-    el.appendChild(ripple);
-    ripple.addEventListener(
-      "animationend",
-      () => {
-        ripple.remove();
-      },
-      { once: true },
-    );
-  };
-
-  const shouldDelayNavigation = (event) => {
-    if (event.defaultPrevented) return false;
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
-      return false;
-    if (event.button !== 0) return false;
-    const target = event.currentTarget.getAttribute("target");
-    return !target || target === "_self";
-  };
-
-  const prefersReducedMotion = () => {
-    if (
-      typeof window === "undefined" ||
-      typeof window.matchMedia !== "function"
-    )
-      return false;
-    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  };
-
-  const handlePointerDown = (event) => {
-    if (event.button !== 0) return;
-    if (prefersReducedMotion()) return;
-    spawnRipple(event.clientX, event.clientY);
-  };
-
-  const handleKeyDown = (event) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    if (prefersReducedMotion()) return;
-    spawnRipple(Number.NaN, Number.NaN);
-  };
-
-  const handleCardClick = (event) => {
-    if (!shouldDelayNavigation(event)) return;
-    if (!targetHref) return;
-    if (prefersReducedMotion()) return;
-
-    event.preventDefault();
-    if (navTimerRef.current) {
-      clearTimeout(navTimerRef.current);
-    }
-
-    navTimerRef.current = setTimeout(() => {
-      router.push(targetHref);
-    }, 230);
-  };
-
-  const contractText = nft?.contract
-    ? String(nft.contract).slice(0, 14)
-    : "NFT Collection";
+  const category = CATEGORY_LABELS[nft?.category] || CATEGORY_LABELS.other;
+  const contractText = nft?.contract ? String(nft.contract).slice(0, 14) : "NFT Collection";
 
   return (
-    <Link
-      ref={linkRef}
-      href={targetHref}
-      className="market-card card-hover"
-      onPointerDown={handlePointerDown}
-      onKeyDown={handleKeyDown}
-      onClick={handleCardClick}
-    >
-      <div className="market-card-media-wrap">
-        <CardMedia nft={nft} />
-
-        <div className="market-card-top">
-          <span className="market-card-collection">{contractText}</span>
-          <span className="market-card-badge">{category}</span>
+    <article className="market-card">
+      <Link href={targetHref} className="market-card-link">
+        <div className="market-card-media-wrap">
+          <CardMedia nft={nft} />
+          <div className="market-card-top">
+            <span className="market-card-collection">{contractText}</span>
+            <span className="market-card-badge">{category}</span>
+          </div>
+          <div className="market-card-bottom">
+            <p className="market-card-title">{nft?.name || "未命名 NFT"}</p>
+            <p className="market-card-desc">{nft?.description || "暂无描述"}</p>
+          </div>
         </div>
+        <CardMeta nft={nft} />
+      </Link>
 
-        {showFavorite && (
-          <button
-            type="button"
-            className={`market-fav-btn ${isFavorite ? "active" : ""}`}
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              onToggleFavorite?.(nft?.id);
-            }}
-            aria-label={isFavorite ? "取消收藏" : "加入收藏"}
-          >
-            {isFavorite ? "已收藏" : "收藏"}
-          </button>
-        )}
-
-        <div className="market-card-bottom">
-          <p className="market-card-title">{nft?.name || "未命名 NFT"}</p>
-          <p className="market-card-desc">{nft?.description || "暂无描述"}</p>
-        </div>
-      </div>
-
-      <div className="market-card-meta">
-        <div className="flex flex-col gap-0.5">
-          <span>{tokenLabel}</span>
-          <span
-            className={royaltyBps > 0 ? "text-[#9ad0ff]" : "text-[#8ea0c6]"}
-          >
-            {royaltyBps > 0
-              ? `版税 ${formatRoyaltyPercent(royaltyBps)}%`
-              : "无版税"}
-          </span>
-        </div>
-        <strong>{formatPrice(nft?.price, nft?.priceUnit)}</strong>
-      </div>
-    </Link>
+      {showFavorite && (
+        <FavoriteButton
+          isFavorite={isFavorite}
+          onClick={() => onToggleFavorite?.(nft?.id)}
+        />
+      )}
+    </article>
   );
 }

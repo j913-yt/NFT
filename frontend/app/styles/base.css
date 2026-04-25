@@ -1,0 +1,149 @@
+:root {
+  --bg: #080808;
+  --surface: #111116;
+  --surface-soft: rgba(255, 255, 255, 0.06);
+  --surface-strong: #1b1b22;
+  --line: rgba(255, 255, 255, 0.14);
+  --line-strong: rgba(0, 213, 200, 0.52);
+  --text-main: #f8f8fb;
+  --text-soft: #c9ced8;
+  --text-dim: #8c93a3;
+  --brand: #00d5c8;
+  --brand-2: #ff3d9a;
+  --brand-3: #a6ff4d;
+  --warning: #ffd166;
+  --danger: #ff6b7a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  color: var(--text-main);
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(135deg, rgba(255, 61, 154, 0.11), transparent 28%),
+    linear-gradient(215deg, rgba(0, 213, 200, 0.13), transparent 32%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 72px);
+  font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: linear-gradient(180deg, black 0%, rgba(0, 0, 0, 0.35) 58%, transparent 100%);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+img,
+video {
+  max-width: 100%;
+}
+
+.tracking-tight {
+  letter-spacing: 0;
+}
+
+.page-shell {
+  margin: 0 auto;
+  width: 100%;
+  max-width: 1320px;
+  padding: 2rem 1rem;
+}
+
+.skip-link {
+  position: fixed;
+  left: 0.75rem;
+  top: 0.75rem;
+  z-index: 80;
+  transform: translateY(-140%);
+  border-radius: 8px;
+  background: #0f1016;
+  padding: 0.55rem 0.75rem;
+  color: #fff;
+  font-size: 0.75rem;
+  transition: transform 0.16s ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.text-soft {
+  color: var(--text-soft);
+}
+
+.text-dim {
+  color: var(--text-dim);
+}
+
+.neo-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 213, 200, 0.55), rgba(255, 61, 154, 0.42), transparent);
+}
+
+:focus-visible {
+  outline: 2px solid rgba(0, 213, 200, 0.85);
+  outline-offset: 2px;
+}
+
+input,
+textarea,
+button {
+  color-scheme: dark;
+}
+
+select {
+  color-scheme: light;
+}
+
+select.input-neo option {
+  color: #121217;
+  background-color: #f7f8fb;
+}
+
+@media (min-width: 640px) {
+  .page-shell {
+    padding: 2.25rem 1.5rem;
+  }
+}

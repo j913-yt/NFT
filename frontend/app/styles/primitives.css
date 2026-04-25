@@ -1,0 +1,150 @@
+.glass-panel,
+.surface-panel,
+.market-card {
+  backdrop-filter: blur(14px);
+}
+
+.glass-panel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: linear-gradient(145deg, rgba(28, 28, 36, 0.9), rgba(12, 12, 16, 0.94));
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.34);
+}
+
+.glass-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  pointer-events: none;
+  background: linear-gradient(90deg, var(--brand-2), var(--brand), var(--brand-3));
+  opacity: 0.72;
+}
+
+.surface-panel {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.035));
+  padding: 0.9rem;
+}
+
+.hero-glow {
+  isolation: isolate;
+}
+
+.hero-glow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(120deg, rgba(255, 61, 154, 0.13), transparent 34%, rgba(0, 213, 200, 0.14));
+}
+
+.btn-primary,
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  padding: 0.62rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1;
+  transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease, filter 0.18s ease;
+}
+
+.btn-primary {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #07070a;
+  background: linear-gradient(100deg, var(--brand-3), var(--brand), #6de8ff);
+  box-shadow: 0 12px 28px rgba(0, 213, 200, 0.24);
+}
+
+.btn-outline {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #f3f6fb;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.btn-primary:hover,
+.btn-outline:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+}
+
+.badge,
+.mini-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.badge {
+  border: 1px solid rgba(0, 213, 200, 0.42);
+  background: rgba(0, 213, 200, 0.12);
+  color: #dffdfa;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.mini-chip {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.07);
+  color: #e7ebf4;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.7rem;
+}
+
+.input-neo {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-main);
+  outline: none;
+  padding: 0.65rem 0.78rem;
+  font-size: 0.875rem;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.input-neo::placeholder {
+  color: var(--text-dim);
+}
+
+.input-neo:focus {
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 0 0 3px rgba(0, 213, 200, 0.15);
+}
+
+.status-message {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  margin-top: 0.75rem;
+  padding: 0.62rem 0.75rem;
+  font-size: 0.78rem;
+}
+
+.status-message.success {
+  border-color: rgba(0, 213, 200, 0.5);
+  background: rgba(0, 213, 200, 0.13);
+  color: #dffdfa;
+}
+
+.status-message.error {
+  border-color: rgba(255, 107, 122, 0.5);
+  background: rgba(255, 107, 122, 0.13);
+  color: #ffe1e6;
+}
+
+.status-message.info {
+  border-color: rgba(109, 232, 255, 0.42);
+  background: rgba(109, 232, 255, 0.12);
+  color: #ddf9ff;
+}

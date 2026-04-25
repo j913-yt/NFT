@@ -1,0 +1,6 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,Audit current and reference frontend structure,DONE,关键页面/组件/样式差异已记录,Get-ChildItem scans complete,2026-04-25,0,当前项目为 JS+Tailwind；参考项目为 TS+NextUI+Tailwind
+2,Extract reusable design patterns,DONE,确定可迁移的布局/组件/样式且不引入新依赖,manual review,2026-04-25,0,迁移 Header 组织、Volume Data、分类筛选、虹彩卡片边框和卡片悬浮层
+3,Implement frontend style and component improvements,DONE,目标页面和通用组件完成优化,npm run lint,2026-04-25,0,完成样式拆分、Header、首页、市场页、Tabs、卡片、筛选与统计组件
+4,Run build validation and fix surfaced issues,DONE,lint/build 通过或错误清晰记录,npm run build,2026-04-25,0,lint/build 均通过；仅剩既有 img 与 profile hook 警告
+5,Summarize changed files and validation,DONE,PROGRESS.md 记录最终状态,manual review,2026-04-25,0,最终变更与验证结果已记录

@@ -13,6 +13,7 @@ import { getNFTMedia } from "@/lib/media";
 import {
   buyNFTWithWallet,
   delistNFTWithWallet,
+  formatEth,
   getRoyaltyInfoOnChain,
   listNFTWithWallet,
 } from "@/lib/web3";

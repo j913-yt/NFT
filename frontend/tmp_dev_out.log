@@ -1,0 +1,14 @@
+
+> nft-frontend@1.0.0 dev
+> next dev
+
+  ▲ Next.js 14.2.5
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 3.4s
+ ○ Compiling /nfts ...
+ ✓ Compiled /nfts in 6.8s (1086 modules)
+ GET / 200 in 7438ms
+ GET /nfts 200 in 7467ms

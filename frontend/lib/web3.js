@@ -5,8 +5,10 @@ export const NFT_CONTRACT_ADDRESS =
   "0xYourDeployedContractAddress";
 
 export const MAX_ROYALTY_BPS = 2500;
+export const PREFERRED_WALLET_ID_KEY = "preferred_wallet_id";
 
 export const NFT_CONTRACT_ABI = [
+  "function ownerOf(uint256 tokenId) external view returns (address)",
   "function safeMint(address to, string uri) external returns (uint256)",
   "function safeMint(address to, string uri, address royaltyReceiver, uint96 royaltyFeeBps) external returns (uint256)",
   "function mintAndList(string uri, uint256 priceWei) external returns (uint256)",
@@ -18,6 +20,7 @@ export const NFT_CONTRACT_ABI = [
   "function getListing(uint256 tokenId) external view returns (address seller, uint256 priceWei, bool active)",
   "function getRoyaltyInfo(uint256 tokenId, uint256 salePriceWei) external view returns (address receiver, uint256 royaltyAmount, uint96 royaltyFeeBps)",
   "function royaltyInfo(uint256 tokenId, uint256 salePriceWei) external view returns (address receiver, uint256 royaltyAmount)",
+  "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)",
   "event Minted(address indexed to, uint256 indexed tokenId, string tokenURI)",
   "event Listed(uint256 indexed tokenId, address indexed seller, uint256 priceWei)",
   "event Delisted(uint256 indexed tokenId, address indexed seller)",
@@ -33,6 +36,52 @@ const MATIC_TO_ETH = Number(process.env.NEXT_PUBLIC_MATIC_TO_ETH || "0.0002");
 function safeNumber(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
+}
+
+function shortAddress(value) {
+  if (!value) return "-";
+  if (value.length <= 12) return value;
+  return `${value.slice(0, 6)}...${value.slice(-4)}`;
+}
+
+export function getPreferredWalletId() {
+  if (typeof window === "undefined") return "";
+  return window.localStorage.getItem(PREFERRED_WALLET_ID_KEY) || "";
+}
+
+export function setPreferredWalletId(walletId) {
+  if (typeof window === "undefined") return;
+  const next = String(walletId || "").trim();
+  if (!next) {
+    window.localStorage.removeItem(PREFERRED_WALLET_ID_KEY);
+    return;
+  }
+  window.localStorage.setItem(PREFERRED_WALLET_ID_KEY, next);
+}
+
+function readLoggedInWallet() {
+  if (typeof window === "undefined") return "";
+  const raw = window.localStorage.getItem("current_user");
+  if (!raw) return "";
+
+  try {
+    const user = JSON.parse(raw);
+    return String(user?.wallet || "").trim().toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function assertLoggedInWallet(account, actionLabel = "当前操作") {
+  const expected = readLoggedInWallet();
+  if (!expected) return;
+
+  const actual = String(account || "").trim().toLowerCase();
+  if (!actual || actual === expected) return;
+
+  throw new Error(
+    `${actionLabel}使用的钱包 ${shortAddress(account)} 与当前登录钱包 ${shortAddress(expected)} 不一致，请切换到登录钱包后重试`,
+  );
 }
 
 function toSafeInt(value) {
@@ -100,17 +149,43 @@ function assertContractAddress() {
   }
 }
 
-function parseMintedTokenId(contract, receipt) {
+function parseMintedTokenId(contract, receipt, expectedTo = "") {
+  const normalizedExpected = String(expectedTo || "").trim().toLowerCase();
+
   for (const log of receipt.logs) {
     try {
       const parsed = contract.interface.parseLog(log);
-      if (parsed?.name === "Minted") {
+      if (
+        parsed?.name === "Minted" &&
+        (!normalizedExpected ||
+          String(parsed.args.to || "").trim().toLowerCase() ===
+            normalizedExpected)
+      ) {
         return parsed.args.tokenId.toString();
       }
     } catch {
       // ignore unrelated logs
     }
   }
+
+  for (const log of receipt.logs) {
+    try {
+      const parsed = contract.interface.parseLog(log);
+      if (
+        parsed?.name === "Transfer" &&
+        String(parsed.args.from || "").trim().toLowerCase() ===
+          ethers.ZeroAddress.toLowerCase() &&
+        (!normalizedExpected ||
+          String(parsed.args.to || "").trim().toLowerCase() ===
+            normalizedExpected)
+      ) {
+        return parsed.args.tokenId.toString();
+      }
+    } catch {
+      // ignore unrelated logs
+    }
+  }
+
   return "";
 }
 
@@ -182,6 +257,20 @@ async function readListingCompat(contract, tokenId) {
   return null;
 }
 
+async function assertTokenOwner(contract, tokenId, account, actionLabel) {
+  const owner = await contract.ownerOf(tokenId);
+  const normalizedOwner = String(owner || "").trim().toLowerCase();
+  const normalizedAccount = String(account || "").trim().toLowerCase();
+
+  if (normalizedOwner && normalizedOwner !== normalizedAccount) {
+    throw new Error(
+      `当前钱包 ${shortAddress(account)} 不是该 NFT 的链上持有人，无法${actionLabel}。链上持有人为 ${shortAddress(owner)}`,
+    );
+  }
+
+  return owner;
+}
+
 async function hasBuyEntryPoint(contract, tokenId, from) {
   const provider = contract.runner?.provider;
   if (!provider) return true;
@@ -249,16 +338,32 @@ export async function getProviderAndSigner(preferredId) {
   }
 
   let target = wallets[0];
-  if (preferredId) {
-    const found = wallets.find((w) => w.id === preferredId);
+  const resolvedPreferredId =
+    String(preferredId || getPreferredWalletId() || "").trim() || "";
+  if (resolvedPreferredId) {
+    const found = wallets.find((w) => w.id === resolvedPreferredId);
     if (found) target = found;
   }
 
   const provider = new ethers.BrowserProvider(target.provider);
   const accounts = await provider.send("eth_requestAccounts", []);
-  const signer = await provider.getSigner();
+  if (!Array.isArray(accounts) || !accounts[0]) {
+    throw new Error("钱包未返回可用账号，请先在钱包中授权");
+  }
 
-  return { provider, signer, account: accounts[0] };
+  const expectedWallet = readLoggedInWallet();
+  const matchedAccount = expectedWallet
+    ? accounts.find(
+        (item) =>
+          String(item || "").trim().toLowerCase() === expectedWallet,
+      )
+    : "";
+  const account = String(matchedAccount || accounts[0]).trim();
+  assertLoggedInWallet(account, "链上交易");
+  setPreferredWalletId(target.id);
+  const signer = await provider.getSigner(account);
+
+  return { provider, signer, account, walletId: target.id };
 }
 
 function getReadOnlyProvider() {
@@ -275,6 +380,26 @@ function getReadOnlyProvider() {
   }
 
   throw new Error("无法读取链上版税信息：请配置 NEXT_PUBLIC_RPC_URL");
+}
+
+export async function getTokenOwnerOnChain(tokenId) {
+  if (!tokenId) {
+    return "";
+  }
+
+  assertContractAddress();
+  const provider = getReadOnlyProvider();
+  const contract = new ethers.Contract(
+    NFT_CONTRACT_ADDRESS,
+    NFT_CONTRACT_ABI,
+    provider,
+  );
+
+  try {
+    return await contract.ownerOf(tokenId);
+  } catch {
+    return "";
+  }
 }
 
 export async function getRoyaltyInfoOnChain({
@@ -436,12 +561,14 @@ export async function mintNFTWithWallet({
   onStage?.("chain", tx.hash);
   const receipt = await tx.wait();
   onStage?.("confirmed", receipt.hash);
-  let tokenId = parseMintedTokenId(contract, receipt);
+  let tokenId = parseMintedTokenId(contract, receipt, account);
 
   if (!tokenId) {
     const total = await contract.totalMinted();
     tokenId = total.toString();
   }
+
+  await assertTokenOwner(contract, tokenId, account, "继续同步后台数据");
 
   return {
     account,
@@ -478,6 +605,7 @@ export async function listNFTWithWallet({
     NFT_CONTRACT_ABI,
     signer,
   );
+  await assertTokenOwner(contract, tokenId, account, "上架");
 
   const priceWei = toEthWei(normalizedPrice);
   onStage?.("wallet");
@@ -506,6 +634,7 @@ export async function delistNFTWithWallet({ tokenId, walletId, onStage }) {
     NFT_CONTRACT_ABI,
     signer,
   );
+  await assertTokenOwner(contract, tokenId, account, "下架");
 
   onStage?.("wallet");
   const tx = await contract.cancelListing(tokenId);
@@ -585,6 +714,17 @@ export async function buyNFTWithWallet({
 
   if (seller && seller.toLowerCase() === account.toLowerCase()) {
     throw new Error("不能购买自己发布的 NFT");
+  }
+
+  const owner = await contract.ownerOf(tokenId);
+  if (
+    seller &&
+    String(owner || "").trim().toLowerCase() !==
+      String(seller || "").trim().toLowerCase()
+  ) {
+    throw new Error(
+      `该 NFT 的链上持有人是 ${shortAddress(owner)}，与当前上架卖家 ${shortAddress(seller)} 不一致，请让卖家重新上架后再试`,
+    );
   }
 
   onStage?.("wallet");

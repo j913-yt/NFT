@@ -1,0 +1,78 @@
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(8, 8, 8, 0.82);
+  backdrop-filter: blur(18px);
+}
+
+.app-header-inner {
+  margin: 0 auto;
+  max-width: 1320px;
+  padding: 0.9rem 1rem;
+}
+
+.brand-mark {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.brand-mark img {
+  height: 2.5rem;
+  width: 2.5rem;
+  border-radius: 8px;
+  object-fit: cover;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.brand-title {
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.brand-subtitle {
+  margin-top: 0.25rem;
+  color: var(--text-dim);
+  font-size: 0.7rem;
+}
+
+.top-nav-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.52rem 0.82rem;
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+
+.top-nav-pill:hover,
+.top-nav-pill.active {
+  border-color: rgba(0, 213, 200, 0.42);
+  background: rgba(0, 213, 200, 0.12);
+  color: #fff;
+}
+
+.mobile-nav {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-top: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .app-header-inner {
+    padding-inline: 1.5rem;
+  }
+
+  .brand-title {
+    font-size: 1.12rem;
+  }
+}
