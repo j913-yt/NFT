@@ -11,16 +11,23 @@ import (
 )
 
 type NFTService struct {
-	db *gorm.DB
+	db             *gorm.DB
+	activeContract string
 }
 
-func NewNFTService(db *gorm.DB) *NFTService {
-	return &NFTService{db: db}
+func NewNFTService(db *gorm.DB, activeContract string) *NFTService {
+	return &NFTService{
+		db:             db,
+		activeContract: strings.TrimSpace(activeContract),
+	}
 }
 
 func (s *NFTService) List(category string, listedOnly *bool) ([]model.NFT, error) {
 	var nfts []model.NFT
 	query := s.db.Order("id desc")
+	if s.activeContract != "" {
+		query = query.Where("contract = ?", s.activeContract)
+	}
 	if category != "" {
 		query = query.Where("category = ?", category)
 	}

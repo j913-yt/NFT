@@ -1,0 +1,5 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,梳理文档与现有实现差距,DONE,确认前后端改造点与环境文件缺口,"Get-Content docs/contract-redeployment-demo-implementation.md",2026-04-25T21:05:00,0,已确认前端链上调用与后端列表过滤需要改造
+2,重构前端 web3 模块并让详情页按 nft.contract 调用,DONE,前端链上读写支持 contractAddress 且详情页透传 nft.contract,"npm run lint",2026-04-25T22:10:00,0,已拆分 web3 与 NFT 详情页相关模块并保持 lint 通过
+3,改造后端配置与 NFTService 合约过滤,DONE,后端支持 ACTIVE_NFT_CONTRACT 并接入 NFTService,"go test ./...",2026-04-25T22:10:30,0,已完成配置读取与列表过滤接线
+4,补充 demo 环境样例并完成验证,DONE,新增 demo 环境样例文件且关键检查通过,"npm run lint && go test ./...",2026-04-25T22:11:00,0,已新增 frontend/backend/hardhat demo 环境样例并完成 lint 与 go test

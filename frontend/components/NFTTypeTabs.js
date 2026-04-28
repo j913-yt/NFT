@@ -1,21 +1,20 @@
 "use client";
 
-import { Tab, Tabs } from "@nextui-org/react";
+import { Button, ScrollShadow } from "@nextui-org/react";
 import { CATEGORY_TABS } from "@/lib/marketplace";
 
 const ICONS = Object.freeze({
-  all: "▦",
-  art: "◐",
-  music: "♪",
-  video: "▶",
-  other: "•••"
+  all: "#",
+  art: "A",
+  music: "M",
+  video: "V",
+  other: "..."
 });
 
-function tabTitle(item) {
+function PillIcon({ id }) {
   return (
-    <span className="flex items-center gap-2">
-      <span className="type-tab-icon" aria-hidden="true">{ICONS[item.id] || ICONS.other}</span>
-      <span>{item.label}</span>
+    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white/15 text-[10px] font-black">
+      {ICONS[id] || ICONS.other}
     </span>
   );
 }
@@ -27,24 +26,26 @@ export default function NFTTypeTabs({
   compact = false
 }) {
   return (
-    <Tabs
-      aria-label="NFT 分类筛选"
-      color="primary"
-      radius="full"
-      selectedKey={selected}
-      size={compact ? "sm" : "md"}
-      variant="bordered"
-      classNames={{
-        base: "max-w-full",
-        tabList: "flex-wrap border-white/15 bg-white/[0.04]",
-        cursor: "bg-primary/25",
-        tab: "font-semibold text-foreground"
-      }}
-      onSelectionChange={(key) => onChange?.(String(key))}
-    >
-      {items.map((item) => (
-        <Tab key={item.id} title={tabTitle(item)} />
-      ))}
-    </Tabs>
+    <ScrollShadow orientation="horizontal" hideScrollBar className="w-full max-w-full">
+      <div className="flex min-w-max items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] p-1">
+        {items.map((item) => {
+          const active = selected === item.id;
+          return (
+            <Button
+              key={item.id}
+              className="shrink-0 font-semibold"
+              color={active ? "primary" : "default"}
+              radius="full"
+              size={compact ? "sm" : "md"}
+              startContent={<PillIcon id={item.id} />}
+              variant={active ? "flat" : "light"}
+              onPress={() => onChange?.(item.id)}
+            >
+              {item.label}
+            </Button>
+          );
+        })}
+      </div>
+    </ScrollShadow>
   );
 }

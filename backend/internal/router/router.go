@@ -33,7 +33,7 @@ func setupRoutes(r *mux.Router, db *gorm.DB, cfg *config.Config) {
 	authSvc := service.NewAuthService(db, cfg)
 	authHandler := handler.NewAuthHandler(authSvc)
 
-	nftSvc := service.NewNFTService(db)
+	nftSvc := service.NewNFTService(db, cfg.ActiveNFTContract)
 	nftHandler := handler.NewNFTHandler(nftSvc)
 
 	orderSvc := service.NewOrderService(db, nftSvc)

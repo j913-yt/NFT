@@ -11,16 +11,17 @@ import (
 )
 
 type Config struct {
-	JWTSecret       string
-	MySQLHost       string
-	MySQLPort       int
-	MySQLUser       string
-	MySQLPass       string
-	MySQLDB         string
-	PinataJWT       string
-	PinataAPIKey    string
-	PinataAPISecret string
-	IPFSGateway     string
+	JWTSecret         string
+	MySQLHost         string
+	MySQLPort         int
+	MySQLUser         string
+	MySQLPass         string
+	MySQLDB           string
+	ActiveNFTContract string
+	PinataJWT         string
+	PinataAPIKey      string
+	PinataAPISecret   string
+	IPFSGateway       string
 }
 
 func collectDotEnvCandidates() []string {
@@ -138,6 +139,7 @@ func Load() *Config {
 	if db == "" {
 		db = "nft"
 	}
+	activeNFTContract := strings.TrimSpace(os.Getenv("ACTIVE_NFT_CONTRACT"))
 
 	pinataJWT := os.Getenv("PINATA_JWT")
 	pinataAPIKey := os.Getenv("PINATA_API_KEY")
@@ -151,15 +153,16 @@ func Load() *Config {
 	log.Printf("using mysql at %s", fmt.Sprintf("%s:%d/%s", host, port, db))
 
 	return &Config{
-		JWTSecret:       secret,
-		MySQLHost:       host,
-		MySQLPort:       port,
-		MySQLUser:       user,
-		MySQLPass:       pass,
-		MySQLDB:         db,
-		PinataJWT:       pinataJWT,
-		PinataAPIKey:    pinataAPIKey,
-		PinataAPISecret: pinataAPISecret,
-		IPFSGateway:     gateway,
+		JWTSecret:         secret,
+		MySQLHost:         host,
+		MySQLPort:         port,
+		MySQLUser:         user,
+		MySQLPass:         pass,
+		MySQLDB:           db,
+		ActiveNFTContract: activeNFTContract,
+		PinataJWT:         pinataJWT,
+		PinataAPIKey:      pinataAPIKey,
+		PinataAPISecret:   pinataAPISecret,
+		IPFSGateway:       gateway,
 	}
 }

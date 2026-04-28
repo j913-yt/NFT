@@ -14,3 +14,23 @@
  GET /nfts 200 in 96ms
  GET /nfts/create 200 in 141ms
  GET /profile 200 in 160ms
+ GET / 200 in 153ms
+ GET / 200 in 96ms
+ ○ Compiling /nfts/[id] ...
+ ✓ Compiled /nfts/[id] in 2.5s (4215 modules)
+ ✓ Compiled in 4s (4242 modules)
+ GET / 200 in 730ms
+ GET / 200 in 120ms
+ ✓ Compiled in 4.8s (4242 modules)
+ GET /nfts 200 in 665ms
+ ✓ Compiled in 3.7s (4229 modules)
+ ✓ Compiled in 2.1s (2065 modules)
+ GET / 200 in 769ms
+ ✓ Compiled in 5.1s (4241 modules)
+ ✓ Compiled in 2.9s (4241 modules)
+ ✓ Compiled in 3.5s (4245 modules)
+ ✓ Compiled in 4.7s (4255 modules)
+ ✓ Compiled in 2.6s (4255 modules)
+ ✓ Compiled in 2.5s (4257 modules)
+ ✓ Compiled in 2.7s (4257 modules)
+ ✓ Compiled in 2.1s (4257 modules)
