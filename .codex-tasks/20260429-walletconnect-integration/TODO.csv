@@ -1,0 +1,6 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,Compare wallet setup in both projects,DONE,Relevant wallet config and provider files are identified,manual inspection,2026-04-29,0,"Reference uses RainbowKit getDefaultConfig with walletConnectWallet and projectId."
+2,Implement WalletConnect-capable wagmi config,DONE,RainbowKit config includes WalletConnect using copied project id,npm run lint,2026-04-29,0,"Added frontend/lib/wallet/config.js with RainbowKit walletConnectWallet and Sepolia."
+3,Wire providers and wallet UI to the config,DONE,App renders through WagmiProvider QueryClientProvider and RainbowKitProvider,npm run lint,2026-04-29,0,"Providers now wrap WagmiProvider QueryClientProvider RainbowKitProvider; wallet button uses RainbowKit modal and wagmi signing."
+4,Update env examples if needed,DONE,WalletConnect project id is documented in frontend env files,manual inspection,2026-04-29,0,"Added NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID to .env.local and .env.local.demo."
+5,Run validation,DONE,Static or build validation succeeds or exposes real failures,"npm run lint; npm run build; Invoke-WebRequest / and /auth/login",2026-04-29,0,"lint passed with unrelated warnings; dev pages returned 200; build blocked by existing npm run dev lock on .next/trace."

@@ -1,7 +1,11 @@
 import { ethers } from "ethers";
+import { getAccount, getConnectorClient } from "@wagmi/core";
 
 import { PREFERRED_WALLET_ID_KEY } from "./constants";
 import { shortAddress } from "./utils";
+import { wagmiConfig } from "@/lib/wallet/config";
+
+const WAGMI_WALLET_ID = "wagmi";
 
 export function getPreferredWalletId() {
   if (typeof window === "undefined") {
@@ -57,6 +61,44 @@ function assertLoggedInWallet(account, actionLabel = "当前操作") {
   throw new Error(
     `${actionLabel}使用的钱包 ${shortAddress(account)} 与当前登录钱包 ${shortAddress(expectedWallet)} 不一致，请切换到登录钱包后重试`,
   );
+}
+
+function buildEthersNetwork(chain) {
+  if (!chain?.id) {
+    return undefined;
+  }
+
+  return {
+    chainId: chain.id,
+    name: chain.name || "connected-chain",
+  };
+}
+
+async function getConnectedWagmiWallet() {
+  const activeAccount = getAccount(wagmiConfig);
+  if (!activeAccount?.isConnected || !activeAccount.address) {
+    return null;
+  }
+
+  const client = await getConnectorClient(wagmiConfig, {
+    account: activeAccount.address,
+  });
+  const account = String(client.account?.address || activeAccount.address).trim();
+  assertLoggedInWallet(account, "链上交易");
+
+  const provider = new ethers.BrowserProvider(
+    client.transport,
+    buildEthersNetwork(client.chain),
+  );
+  const walletId = activeAccount.connector?.id || WAGMI_WALLET_ID;
+  setPreferredWalletId(walletId);
+
+  return {
+    provider,
+    signer: await provider.getSigner(account),
+    account,
+    walletId,
+  };
 }
 
 function resolveTargetWallet(wallets, preferredId) {
@@ -121,6 +163,11 @@ export function detectInjectedWallets() {
 export async function getProviderAndSigner(preferredId) {
   if (typeof window === "undefined") {
     throw new Error("仅在浏览器中可用");
+  }
+
+  const wagmiWallet = await getConnectedWagmiWallet();
+  if (wagmiWallet) {
+    return wagmiWallet;
   }
 
   const wallets = detectInjectedWallets();
