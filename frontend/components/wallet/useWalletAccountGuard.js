@@ -3,13 +3,27 @@
 import { useEffect } from "react";
 import { sameAddress } from "@/lib/wallet/session";
 
-export default function useWalletAccountGuard({ address, clearLocalLogin, session }) {
+const DISCONNECTED_STATUS = "disconnected";
+
+export default function useWalletAccountGuard({
+  address,
+  clearLocalLogin,
+  session,
+  status,
+}) {
   useEffect(() => {
-    if (!session.loggedIn || !address || !session.account) {
+    if (!session.loggedIn) {
+      return;
+    }
+    if (status === DISCONNECTED_STATUS) {
+      clearLocalLogin(false);
+      return;
+    }
+    if (!address || !session.account) {
       return;
     }
     if (!sameAddress(address, session.account)) {
       clearLocalLogin(false);
     }
-  }, [address, clearLocalLogin, session.account, session.loggedIn]);
+  }, [address, clearLocalLogin, session.account, session.loggedIn, status]);
 }

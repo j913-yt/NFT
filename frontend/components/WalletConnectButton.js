@@ -74,7 +74,7 @@ function buildLoginFlowInput({
 
 export default function WalletConnectButton() {
   const router = useRouter();
-  const { address, connector, isConnected } = useAccount();
+  const { address, connector, isConnected, status } = useAccount();
   const { disconnectAsync } = useDisconnect();
   const { signMessageAsync } = useSignMessage();
   const { openConnectModal } = useConnectModal();
@@ -93,6 +93,7 @@ export default function WalletConnectButton() {
     address,
     clearLocalLogin: sessionState.clearLocalLogin,
     session: sessionState.session,
+    status,
   });
 
   const handleLogout = async () => {
