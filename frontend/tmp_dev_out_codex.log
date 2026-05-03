@@ -1,0 +1,29 @@
+
+> nft-frontend@1.0.0 dev
+> next dev
+
+  ▲ Next.js 14.2.5
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 7.2s
+ ○ Compiling /nfts/[id] ...
+ GET /nfts/22 200 in 19053ms
+ GET /nfts/22 200 in 93ms
+ GET /nfts/22 200 in 56ms
+ HEAD /nfts/22 200 in 71ms
+ GET /nfts/22 200 in 62ms
+ GET /nfts/22 200 in 65ms
+ HEAD /nfts/22 200 in 37ms
+ GET /nfts/22 200 in 85ms
+ HEAD /nfts/22 200 in 49ms
+ GET /nfts/22 200 in 51ms
+ GET /nfts/22 200 in 72ms
+ HEAD /nfts/22 200 in 59ms
+ GET /nfts/22 200 in 69ms
+ HEAD /nfts/22 200 in 55ms
+ GET /nfts/22 200 in 55ms
+ HEAD /nfts/22 200 in 59ms
+ GET /nfts/22 200 in 95ms
+ HEAD /nfts/22 200 in 66ms

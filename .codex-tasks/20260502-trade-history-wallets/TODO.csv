@@ -1,0 +1,5 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,Confirm order history fields,DONE,Backend returns sellerWallet and buyerWallet,Read backend internal service order history DTO,2026-05-02,0,Fields already exist in NFTOrderHistoryItem
+2,Update trade history UI,DONE,Empty tab text removed and each side shows name plus wallet,npm run lint,2026-05-02,"0","Updated TradeHistorySection rendering"
+3,Run validation,DONE,Frontend lint passes or exposes actionable errors,npm run lint,2026-05-02,"0","Lint passed with existing warnings"
+4,Verify browser rendering,DONE,NFT detail page shows buyer and seller wallets,Playwright screenshot,2026-05-02,"0","Verified /nfts/22 removes the empty secondary label and renders full buyer/seller wallets"

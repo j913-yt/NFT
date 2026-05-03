@@ -1,0 +1,5 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,Locate notification component,DONE,NotificationBell source is identified,Select-String NotificationBell,2026-05-02,0,Found frontend/components/NotificationBell.js
+2,Split data and UI modules,DONE,NotificationBell file drops below metrics limits and behavior stays intact,npm run lint,2026-05-02,"0","Notification logic split into focused notification modules; all files under 300 lines"
+3,Refresh popover visual layout,DONE,Popover has clearer header actions stats tabs list and empty state,npm run lint,2026-05-02,"0","Popover refreshed with header refresh action stats segmented tabs list cards and empty state"
+4,Validate and screenshot,DONE,Lint passes and browser screenshot confirms layout,npm run lint plus Playwright,2026-05-02,"0","Lint passed with existing unrelated warnings; screenshot saved to frontend/notification-popover-check.png"

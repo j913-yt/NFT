@@ -1,0 +1,5 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,Locate wallet account modal,DONE,WalletAccountMenu source is identified,Get-Content frontend\components\wallet\WalletAccountMenu.js,2026-05-02,0,Found modal component and parent trigger
+2,Refresh wallet account modal UI,DONE,Dialog has clearer structure and four improved actions,npm run lint,2026-05-02,"0","Implemented Material UI-inspired dialog structure and action hierarchy"
+3,Run automated validation,DONE,Frontend static check completes or exposes actionable errors,npm run lint,2026-05-02,"0","Lint passed with existing warnings; build compiled then failed on .next/trace EPERM while dev server was active"
+4,Verify browser rendering,DONE,Profile wallet modal opens and layout is visually checked,Playwright with system Chrome,2026-05-02,"0","Desktop and mobile screenshots generated; portal fixed header containment"

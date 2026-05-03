@@ -1,34 +1,85 @@
 "use client";
 
-function WalletCard({ account, walletLabel, shortAddress }) {
+import { createPortal } from "react-dom";
+
+const ACTION_BUTTON_STYLES = Object.freeze({
+  primary:
+    "border-[var(--brand)] bg-[var(--brand)] text-[#071010] shadow-[0_10px_24px_rgba(0,213,200,0.22)] hover:brightness-105",
+  secondary:
+    "border-white/18 bg-white/[0.06] text-[#eef3ff] hover:border-[var(--line-strong)] hover:bg-white/[0.09]",
+  danger:
+    "border-[rgba(255,107,122,0.42)] bg-[rgba(255,107,122,0.08)] text-[#ffd8de] hover:bg-[rgba(255,107,122,0.14)]",
+  text: "border-transparent bg-transparent text-[#aeb8cc] hover:bg-white/[0.06] hover:text-white",
+});
+
+const ADDRESS_ROW_LABEL = "完整地址";
+
+function DialogHeader({ onClose }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-white/15 bg-gradient-to-br from-[#1a2944] to-[#152136] p-4">
-      <div className="absolute -right-8 -top-8 h-20 w-20 rounded-full bg-[#4b86ff2b]" />
-      <div className="absolute -bottom-8 -left-8 h-20 w-20 rounded-full bg-[#2bbf9c1e]" />
-      <div className="relative z-10 flex items-center gap-3">
-        <div className="flex h-12 w-20 shrink-0 items-center justify-center rounded-xl border border-white/25 bg-white/10 px-2 text-[11px] font-bold leading-4 text-white">
-          钱包地址
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-3xl font-black text-white">{shortAddress}</p>
-          <p className="mt-1 text-[11px] text-[#b8c8ee]">{walletLabel}</p>
-        </div>
-        <span className="rounded-full border border-[#57d88a88] bg-[#57d88a22] px-2 py-1 text-[10px] font-semibold text-[#ddffea]">
-          已连接
-        </span>
+    <div className="flex items-start justify-between gap-4">
+      <div>
+        <p className="text-[11px] font-semibold uppercase text-[var(--brand)]">Wallet Account</p>
+        <h2 id="wallet-account-title" className="mt-1 text-xl font-black text-white">
+          钱包账户
+        </h2>
       </div>
-      <p className="relative z-10 mt-3 break-all rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-[11px] text-[#c7d6ff]">
-        {account}
-      </p>
+      <button
+        type="button"
+        aria-label="关闭钱包账户弹窗"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/12 bg-white/[0.05] text-lg leading-none text-[#dce5ff] transition hover:bg-white/[0.1]"
+        onClick={onClose}
+      >
+        ×
+      </button>
     </div>
   );
 }
 
-function MenuButton({ children, onClick }) {
+function StatusChip() {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(0,213,200,0.38)] bg-[rgba(0,213,200,0.12)] px-2.5 py-1 text-[11px] font-bold text-[#dffdfa]">
+      <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand)]" />
+      已连接
+    </span>
+  );
+}
+
+function WalletSummary({ shortAddress, walletLabel }) {
+  return (
+    <div className="mt-5 rounded-lg border border-white/12 bg-white/[0.045] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold text-[#8f9ab0]">当前钱包</p>
+          <p className="mt-1 truncate text-2xl font-black leading-tight text-white sm:text-3xl">
+            {shortAddress}
+          </p>
+          <p className="mt-1 truncate text-xs text-[#aab6d0]">{walletLabel}</p>
+        </div>
+        <StatusChip />
+      </div>
+    </div>
+  );
+}
+
+function AddressField({ account }) {
+  return (
+    <div className="mt-3 rounded-lg border border-white/12 bg-[#0b1018]/80 px-3.5 py-3">
+      <div className="mb-1 flex items-center justify-between gap-3">
+        <span className="text-[11px] font-semibold text-[#8f9ab0]">{ADDRESS_ROW_LABEL}</span>
+        <span className="text-[11px] font-semibold text-[#8f9ab0]">EVM</span>
+      </div>
+      <p className="break-all font-mono text-[12px] leading-5 text-[#d8e4ff]">{account}</p>
+    </div>
+  );
+}
+
+function ActionButton({ children, onClick, tone = "secondary" }) {
+  const toneClass = ACTION_BUTTON_STYLES[tone];
+
   return (
     <button
       type="button"
-      className="rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-[12px] font-semibold text-[#d6e0ff] transition hover:bg-white/10"
+      className={`min-h-11 rounded-lg border px-3 py-2.5 text-sm font-bold transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] ${toneClass}`}
       onClick={onClick}
     >
       {children}
@@ -38,16 +89,22 @@ function MenuButton({ children, onClick }) {
 
 function MenuActions({ copied, onCopy, onProfile, onLogout, onClose }) {
   return (
-    <div className="mt-3 grid grid-cols-2 gap-2">
-      <MenuButton onClick={onCopy}>{copied ? "已复制" : "复制地址"}</MenuButton>
-      <MenuButton onClick={onProfile}>个人中心</MenuButton>
-      <MenuButton onClick={onLogout}>退出登录</MenuButton>
-      <MenuButton onClick={onClose}>取消</MenuButton>
+    <div className="mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+      <ActionButton tone="primary" onClick={onCopy}>
+        {copied ? "已复制" : "复制地址"}
+      </ActionButton>
+      <ActionButton onClick={onProfile}>个人中心</ActionButton>
+      <ActionButton tone="danger" onClick={onLogout}>
+        退出登录
+      </ActionButton>
+      <ActionButton tone="text" onClick={onClose}>
+        取消
+      </ActionButton>
     </div>
   );
 }
 
-export default function WalletAccountMenu({
+function WalletAccountDialog({
   account,
   copied,
   onClose,
@@ -59,16 +116,21 @@ export default function WalletAccountMenu({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/55 px-4 pt-24 backdrop-blur-sm overlay-fade-enter"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 px-4 py-6 backdrop-blur-sm overlay-fade-enter"
       onClick={onClose}
     >
-      <div
-        className="glass-panel w-full max-w-md p-5 text-xs text-soft modal-popup-enter"
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="wallet-account-title"
+        className="w-full max-w-[520px] rounded-lg border border-white/12 bg-[#12151d]/95 p-5 text-xs text-soft shadow-[0_24px_80px_rgba(0,0,0,0.54)] modal-popup-enter sm:p-6"
         onClick={(event) => event.stopPropagation()}
       >
-        <WalletCard account={account} shortAddress={shortAddress} walletLabel={walletLabel} />
-        <p className="mt-3 text-[11px] text-[#9eb1df]">
-          可以在这里快速复制地址、进入个人中心或退出登录。
+        <DialogHeader onClose={onClose} />
+        <WalletSummary shortAddress={shortAddress} walletLabel={walletLabel} />
+        <AddressField account={account} />
+        <p className="mt-3 text-xs leading-5 text-[#a8b3c7]">
+          复制地址用于收款或核对身份，进入个人中心可查看账户资料与持有记录。
         </p>
         <MenuActions
           copied={copied}
@@ -77,7 +139,15 @@ export default function WalletAccountMenu({
           onLogout={onLogout}
           onProfile={onProfile}
         />
-      </div>
+      </section>
     </div>
   );
+}
+
+export default function WalletAccountMenu(props) {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(<WalletAccountDialog {...props} />, document.body);
 }
