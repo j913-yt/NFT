@@ -2,6 +2,9 @@ export const TX_EXPLORER_BASE =
   process.env.NEXT_PUBLIC_TX_EXPLORER_BASE ||
   "https://sepolia.etherscan.io/tx/";
 
+const IPFS_SCHEME = "ipfs://";
+const IPFS_PUBLIC_GATEWAY = "https://ipfs.io/ipfs/";
+
 export const categoryLabelMap = {
   art: "艺术",
   music: "音乐",
@@ -32,6 +35,20 @@ export function formatRoyaltyPercent(bps) {
   }
 
   return (normalized / 100).toFixed(2).replace(/\.?0+$/, "");
+}
+
+export function resolveMetadataGatewayUrl(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "";
+
+  if (!normalized.toLowerCase().startsWith(IPFS_SCHEME)) {
+    return normalized;
+  }
+
+  const ipfsPath = normalized.slice(IPFS_SCHEME.length).replace(/^\/+/, "");
+  if (!ipfsPath) return "";
+
+  return `${IPFS_PUBLIC_GATEWAY}${ipfsPath}`;
 }
 
 export function shortHex(value, left = 6, right = 4) {

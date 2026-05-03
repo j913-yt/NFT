@@ -1,7 +1,7 @@
 import TxProgressCard from "@/components/TxProgressCard";
 import { formatEth } from "@/lib/web3";
 
-import { formatPrice } from "./detail-utils";
+import { formatPrice, resolveMetadataGatewayUrl } from "./detail-utils";
 
 function SummaryStats({ categoryLabel, nft }) {
   return (
@@ -25,12 +25,29 @@ function SummaryStats({ categoryLabel, nft }) {
 }
 
 function MetadataCard({ nft, owner }) {
+  const rawMetadataUri = nft.tokenUri || nft.metadataUrl || "";
+  const metadataQueryUrl = resolveMetadataGatewayUrl(nft.metadataUrl || rawMetadataUri);
+
   return (
     <div className="space-y-1">
       <p className="break-all">拥有者: {owner?.wallet || "未知"}</p>
       <p className="break-all">所属合约: {nft.contract || "-"}</p>
-      <p className="break-all">链上 URI: {nft.tokenUri || "-"}</p>
-      <p className="break-all">元数据地址: {nft.metadataUrl || "-"}</p>
+      <p className="break-all">链上元数据 URI: {rawMetadataUri || "-"}</p>
+      <p className="break-all">
+        查看元数据:{" "}
+        {metadataQueryUrl ? (
+          <a
+            href={metadataQueryUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-[#7fb2ff] underline-offset-2 hover:underline"
+          >
+            {metadataQueryUrl}
+          </a>
+        ) : (
+          "-"
+        )}
+      </p>
     </div>
   );
 }

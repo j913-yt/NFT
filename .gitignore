@@ -12,3 +12,4 @@ build/
 # go
 bin/
 *.exe
+*.codex-tasks/.
