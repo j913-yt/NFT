@@ -1,0 +1,5 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,Locate wallet state source,DONE,Relevant frontend wallet connection code is identified,manual inspection,2026-05-04T01:00:00+08:00,0,Root cause is useWalletAccountGuard returning early when address is empty after wallet disconnect.
+2,Implement disconnect synchronization,DONE,Disconnecting accounts clears connected account state and dependent auth state,static check,2026-05-04T01:00:00+08:00,0,Wallet guard now clears local login when Wagmi reports disconnected status.
+3,Verify automated checks,DONE,Available frontend checks pass or expose concrete failures,npm scripts,2026-05-04T01:00:00+08:00,0,`npm run lint` passed; `npm run build` completed successfully with existing warnings.
+4,Summarize result,DONE,User receives concise outcome and validation details,final response,2026-05-04T01:00:00+08:00,0,Ready for final response.
