@@ -1,3 +1,5 @@
+// web3 相关通用小工具。
+// 提供安全数字转换、整数转换和钱包地址缩略展示。
 export function safeNumber(value) {
   const normalized = Number(value);
   return Number.isFinite(normalized) ? normalized : 0;

@@ -1,3 +1,5 @@
+// 链上只读查询方法。
+// 负责读取 NFT 持有人、版税信息和上架状态，尽量不发起需要钱包确认的交易。
 import { ethers } from "ethers";
 
 import { BASIS_POINTS, ONE_ETH_WEI } from "./constants";
@@ -6,6 +8,8 @@ import { toEthWei } from "./pricing";
 import { safeNumber } from "./utils";
 import { getProviderAndSigner } from "./wallet";
 
+// 只读 provider 用来查询链上状态，不需要钱包签名。
+// 优先使用配置的 RPC；没有 RPC 时，浏览器钱包也可以提供一个只读连接。
 function getReadOnlyProvider() {
   const rpcUrl =
     process.env.NEXT_PUBLIC_RPC_URL ||
@@ -22,6 +26,7 @@ function getReadOnlyProvider() {
   throw new Error("无法读取链上版税信息：请配置 NEXT_PUBLIC_RPC_URL");
 }
 
+// 解析用于计算版税的成交价。优先使用后端保存的 wei；没有 wei 时使用 ETH；都没有时按 1 ETH 估算。
 function resolveSaleWei(salePriceWei, salePriceEth) {
   const rawWei = String(salePriceWei || "").trim();
   if (rawWei) {
@@ -40,6 +45,8 @@ function resolveSaleWei(salePriceWei, salePriceEth) {
   return ONE_ETH_WEI;
 }
 
+// 读取版税信息。新版合约用 getRoyaltyInfo，会直接返回 feeBps；
+// 如果合约只有标准 EIP-2981 royaltyInfo，就用 royaltyAmount / saleWei 反推出 feeBps。
 async function readRoyaltyCompat(contract, tokenId, saleWei) {
   try {
     const [receiver, royaltyAmount, feeBps] = await contract.getRoyaltyInfo(
@@ -55,6 +62,7 @@ async function readRoyaltyCompat(contract, tokenId, saleWei) {
   }
 }
 
+// 查询某个 tokenId 当前链上 owner。失败时返回空字符串，页面可继续显示后台缓存数据。
 export async function getTokenOwnerOnChain(tokenId, contractAddress = "") {
   if (!tokenId) {
     return "";
@@ -69,6 +77,7 @@ export async function getTokenOwnerOnChain(tokenId, contractAddress = "") {
   }
 }
 
+// 查询某个 NFT 在指定成交价下的版税信息，详情页展示“版税金额/卖家预计收入”会用到。
 export async function getRoyaltyInfoOnChain({
   tokenId,
   salePriceWei = "",
@@ -81,6 +90,7 @@ export async function getRoyaltyInfoOnChain({
 
   const provider = getReadOnlyProvider();
   const contract = createNFTContract({ contractAddress, runner: provider });
+  // saleWei 是传给合约 royaltyInfo/getRoyaltyInfo 的成交价，必须是 wei。
   const saleWei = resolveSaleWei(salePriceWei, salePriceEth);
   const { receiver, royaltyAmount, feeBps } = await readRoyaltyCompat(
     contract,
@@ -101,6 +111,7 @@ export async function getRoyaltyInfoOnChain({
   };
 }
 
+// 读取链上真实上架状态。这里需要钱包连接，是因为当前系统复用了 signer 作为合约 runner。
 export async function getOnChainListing(tokenId, walletId, contractAddress = "") {
   const { signer } = await getProviderAndSigner(walletId);
   const contract = createNFTContract({ contractAddress, runner: signer });

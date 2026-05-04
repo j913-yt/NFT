@@ -1,3 +1,5 @@
+// web3 模块统一出口。
+// 页面层从这里导入钱包、合约、价格换算、铸造、上架、购买等链上交互能力。
 export {
   MAX_ROYALTY_BPS,
   NFT_CONTRACT_ABI,

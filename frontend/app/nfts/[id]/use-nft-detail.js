@@ -1,3 +1,5 @@
+// NFT 详情页业务 Hook。
+// 负责加载详情数据，并封装购买、上架、下架、读取链上版税等交互流程。
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -98,6 +100,7 @@ export function useNFTDetail(id) {
     const loadRoyalty = async () => {
       try {
         const chainInfo = await getRoyaltyInfoOnChain({
+          // 用后台保存的 tokenId 和价格查询链上版税；优先传 priceWei，避免 ETH 小数精度误差。
           contractAddress: nft.contract,
           tokenId: nft.tokenId,
           salePriceWei: nft.priceWei || "",
@@ -139,6 +142,7 @@ export function useNFTDetail(id) {
 
     try {
       const purchase = await buyNFTWithWallet({
+        // 购买时会先读取链上 listing，再用 listing.priceWei 作为交易 value 调用 buy(tokenId)。
         contractAddress: nft.contract,
         tokenId: nft.tokenId,
         fallbackPriceWei: nft.priceWei || "0",
@@ -227,6 +231,7 @@ export function useNFTDetail(id) {
 
     try {
       const listed = await listNFTWithWallet({
+        // 上架会把 nextPrice 从 ETH 转成 wei，然后调用合约 listToken(tokenId, priceWei)。
         contractAddress: nft.contract,
         tokenId: nft.tokenId,
         priceEth: nextPrice,
@@ -288,6 +293,7 @@ export function useNFTDetail(id) {
 
     try {
       const delisted = await delistNFTWithWallet({
+        // 下架只调用 cancelListing(tokenId)，不会销毁 NFT，也不会修改 tokenURI。
         contractAddress: nft.contract,
         tokenId: nft.tokenId,
         onStage: createStageHandler(setTradeProgress, "请在钱包中确认下架交易..."),

@@ -1,5 +1,5 @@
 id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
 1,定位前端合约交互文件,DONE,找到 web3 交易和读取文件,rg "mintAndList|safeMint|buy\(" frontend,,0,
-2,阅读核心 web3 文件,IN_PROGRESS,理解交易/读取/钱包/ABI/价格工具关系,Get-Content frontend/lib/web3/*.js,,0,
-3,补充中文注释,TODO,重点交互方法和变量具备中文说明,git diff -- frontend/lib/web3,,0,
-4,验证注释变更,TODO,确认只改注释并通过可行静态检查,git diff --check,,0,
+2,阅读核心 web3 文件,DONE,理解交易/读取/钱包/ABI/价格工具关系,Get-Content frontend/lib/web3/*.js,,0,
+3,补充中文注释,DONE,重点交互方法和变量具备中文说明,git diff -- frontend/lib/web3,,0,
+4,验证注释变更,DONE,确认只改注释并通过可行静态检查,git diff --check; npm run lint; node --check,,0,build 因 frontend/.next/trace 权限拒绝失败

@@ -1,5 +1,7 @@
 ﻿"use client";
 
+// NFT 创建页面。
+// 负责收集表单、上传素材和元数据到 IPFS，并调用链上铸造/铸造并上架交易。
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createNFT, uploadNFTToIPFS } from "@/lib/api";
@@ -395,6 +397,7 @@ export default function CreateNFTPage() {
         royaltyFeeBps: mintedRoyaltyFeeBps,
         royaltyReceiver: mintedRoyaltyReceiver,
       } = await mintNFTWithWallet({
+        // tokenURI 是 IPFS 元数据地址；priceEth > 0 时底层会调用 mintAndList，否则调用 safeMint。
         tokenURI: ipfs.metadataUri,
         priceEth,
         royaltyFeeBps: normalizedRoyaltyBps,

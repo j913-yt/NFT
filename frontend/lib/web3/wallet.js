@@ -1,3 +1,5 @@
+// 钱包连接和签名对象获取。
+// 负责检测浏览器钱包、校验登录钱包、返回 provider、signer 和当前账号地址。
 import { ethers } from "ethers";
 import { getAccount, getConnectorClient } from "@wagmi/core";
 
@@ -7,6 +9,7 @@ import { wagmiConfig } from "@/lib/wallet/config";
 
 const WAGMI_WALLET_ID = "wagmi";
 
+// 记录用户上次选择的钱包插件，下次发起交易时优先使用同一个钱包。
 export function getPreferredWalletId() {
   if (typeof window === "undefined") {
     return "";
@@ -15,6 +18,7 @@ export function getPreferredWalletId() {
   return window.localStorage.getItem(PREFERRED_WALLET_ID_KEY) || "";
 }
 
+// 保存或清除用户偏好的钱包 ID，比如 metamask、okx、bitget。
 export function setPreferredWalletId(walletId) {
   if (typeof window === "undefined") {
     return;
@@ -29,6 +33,7 @@ export function setPreferredWalletId(walletId) {
   window.localStorage.setItem(PREFERRED_WALLET_ID_KEY, normalized);
 }
 
+// 从登录态里读取绑定的钱包地址，用来防止“登录账号”和“实际签名钱包”不一致。
 function readLoggedInWallet() {
   if (typeof window === "undefined") {
     return "";
@@ -47,6 +52,7 @@ function readLoggedInWallet() {
   }
 }
 
+// 链上交易必须由当前登录钱包签名，否则后台账号和链上资产会对不上。
 function assertLoggedInWallet(account, actionLabel = "当前操作") {
   const expectedWallet = readLoggedInWallet();
   if (!expectedWallet) {
@@ -63,6 +69,7 @@ function assertLoggedInWallet(account, actionLabel = "当前操作") {
   );
 }
 
+// wagmi 的 chain 对象转换成 ethers BrowserProvider 能识别的网络对象。
 function buildEthersNetwork(chain) {
   if (!chain?.id) {
     return undefined;
@@ -74,6 +81,8 @@ function buildEthersNetwork(chain) {
   };
 }
 
+// 优先使用 RainbowKit/wagmi 当前已连接的钱包。
+// signer 是能发交易和签名的对象；provider 主要负责读链和广播交易。
 async function getConnectedWagmiWallet() {
   const activeAccount = getAccount(wagmiConfig);
   if (!activeAccount?.isConnected || !activeAccount.address) {
@@ -101,6 +110,7 @@ async function getConnectedWagmiWallet() {
   };
 }
 
+// 多钱包环境下选择目标钱包：优先用用户指定或上次选择的钱包，否则用第一个检测到的钱包。
 function resolveTargetWallet(wallets, preferredId) {
   const fallback = wallets[0];
   const normalizedPreferredId =
@@ -112,6 +122,7 @@ function resolveTargetWallet(wallets, preferredId) {
   return wallets.find((wallet) => wallet.id === normalizedPreferredId) || fallback;
 }
 
+// 检测浏览器注入的钱包对象。不同钱包会挂在 window.ethereum.providers 或自己的全局对象上。
 export function detectInjectedWallets() {
   if (typeof window === "undefined") {
     return [];
@@ -160,6 +171,8 @@ export function detectInjectedWallets() {
   return results;
 }
 
+// 获取本次链上操作需要的 provider、signer 和 account。
+// 页面调用合约写方法前都要先走这里，让用户授权并拿到可签名的钱包账户。
 export async function getProviderAndSigner(preferredId) {
   if (typeof window === "undefined") {
     throw new Error("仅在浏览器中可用");
