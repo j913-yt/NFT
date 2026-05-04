@@ -1,0 +1,5 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,确认后端源码范围,DONE,明确需要注释的 Go 和 SQL 文件,rg --files backend,2026-05-05,0,后端源码范围限定为 cmd/internal/scripts 下的源码文件
+2,阅读后端文件职责,DONE,理解 handler/service/repository/model/util/middleware 的职责,rg -n "func|type|const|var" backend -g "*.go",2026-05-05,0,已确认 handler/service/repository/model/util/middleware/router 的职责
+3,补充中文注释,DONE,文件顶部、方法和关键变量已补充中文注释,gofmt -w backend/**/*.go,2026-05-05,0,已补充 backend/cmd backend/internal backend/scripts 的中文注释
+4,运行验证,DONE,格式化和测试或静态检查完成,go test ./...,2026-05-05,0,go test ./... 通过；git diff --check 仅有 CRLF 提示
