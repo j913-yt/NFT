@@ -1,5 +1,7 @@
 ﻿import axios from "axios";
 
+import { WALLET_SESSION_CHANGED_EVENT } from "@/lib/wallet/session";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
 
 const api = axios.create({
@@ -172,6 +174,7 @@ export async function walletLogin(wallet, signature) {
     if (typeof window !== "undefined") {
       window.localStorage.setItem("jwt_token", res.data.token);
       window.localStorage.setItem("current_user", JSON.stringify(res.data.user || {}));
+      window.dispatchEvent(new Event(WALLET_SESSION_CHANGED_EVENT));
     }
     return res.data;
   } catch (error) {

@@ -3,6 +3,8 @@ export const EMPTY_WALLET_SESSION = Object.freeze({
   loggedIn: false,
 });
 
+export const WALLET_SESSION_CHANGED_EVENT = "wallet-session-changed";
+
 export function sameAddress(firstAddress, secondAddress) {
   return (
     String(firstAddress || "").trim().toLowerCase() ===
@@ -41,4 +43,5 @@ export function clearWalletSession() {
 
   window.localStorage.removeItem("jwt_token");
   window.localStorage.removeItem("current_user");
+  window.dispatchEvent(new Event(WALLET_SESSION_CHANGED_EVENT));
 }

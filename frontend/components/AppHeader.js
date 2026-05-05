@@ -1,11 +1,28 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import NextLink from "next/link";
 import { usePathname } from "next/navigation";
 import { Button, Navbar, NavbarBrand, NavbarContent, NavbarItem, ScrollShadow, Tooltip } from "@nextui-org/react";
-import NotificationBell from "@/components/NotificationBell";
-import WalletConnectButton from "@/components/WalletConnectButton";
+import DynamicWalletConnectButton from "@/components/DynamicWalletConnectButton";
+
+function NotificationBellLoading() {
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-flex h-9 w-9 rounded-xl border border-[#86a4e733] bg-[#162645] opacity-70"
+    />
+  );
+}
+
+const NotificationBell = dynamic(
+  () => import("@/components/NotificationBell"),
+  {
+    ssr: false,
+    loading: NotificationBellLoading,
+  },
+);
 
 const NAV_ITEMS = Object.freeze([
   { href: "/", label: "首页" },
@@ -71,7 +88,7 @@ function HeaderActions() {
         </Button>
       </Tooltip>
       <NotificationBell />
-      <WalletConnectButton />
+      <DynamicWalletConnectButton />
     </div>
   );
 }

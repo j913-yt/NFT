@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import WalletConnectButton from "@/components/WalletConnectButton";
+import DynamicWalletConnectButton from "@/components/DynamicWalletConnectButton";
 
 export default function LoginPage() {
   return (
@@ -24,7 +24,7 @@ export default function LoginPage() {
           </div>
 
           <div className="mt-5 flex justify-center">
-            <WalletConnectButton />
+            <DynamicWalletConnectButton />
           </div>
 
           <div className="mt-5 flex flex-wrap justify-center gap-2 text-[11px] text-soft">
