@@ -1,0 +1,6 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,盘点项目结构与技术栈,DONE,记录项目主要模块和可展示功能,PowerShell project scan completes,2026-05-05T21:50:42,0,"确认 Go 后端、Next.js 前端、Solidity/Hardhat 合约、IPFS/Pinata、MySQL/GORM，以及登录/创建/展示/交易/个人中心等功能。"
+2,读取论文并提炼答辩重点,DONE,得到论文摘要/功能/架构/数据库/测试等关键信息,extracted text exists,2026-05-05T21:55:00,0,"已从 .doc 抽取文本，提炼到 raw/thesis-key-points.md。"
+3,设计5-7分钟PPT页纲,DONE,页纲突出系统功能且匹配答辩时间,outline file exists,2026-05-05T21:58:00,0,"已保存 raw/ppt-outline.md，共 10 页，主体围绕系统功能闭环。"
+4,生成答辩PPT,DONE,pptx文件生成到工作区,PowerPoint package can be opened,2026-05-05T22:06:37,0,"已生成 D:\AStudy\NFT\NFT数字藏品交易平台答辩PPT.pptx。"
+5,验证并汇报结果,DONE,检查pptx结构并说明输出位置,validation command succeeds,2026-05-05T22:08:00,0,"PowerPoint COM 打开成功，共 10 页；已导出预览 PNG；确认未将 Hook.Rs key 写入项目文件。"

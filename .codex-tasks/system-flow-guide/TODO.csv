@@ -1,0 +1,5 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,建立文档任务记录,DONE,任务文件已创建,test -f .codex-tasks/system-flow-guide/TODO.csv,2026-05-05,0,
+2,梳理钱包登录和交易调用链,DONE,确认前端/后端/合约相关入口,rg -n "Wallet|nonce|login|mint|buy|list|order" frontend backend contracts,2026-05-05,0,已确认钱包登录、创建、购买、上架、下架的调用链
+3,编写系统流程串联文档,DONE,docs/system-flow-guide.md 已写入中文流程说明,test -f docs/system-flow-guide.md,2026-05-05,0,
+4,验证文档引用,DONE,文档中的本地路径能在项目中找到,Test-Path -LiteralPath,2026-05-05,0,已逐个验证文档反复引用的前端/后端/合约关键路径
